@@ -1,0 +1,143 @@
+# CLI / API reference — `scripts/video.py`
+
+The engine is a single Python CLI with three subcommands. It is **agent-first**: every command prints
+**JSON** to stdout (so Claude can parse it), unless you pass `--human`. Errors are emitted as
+`{"error": "..."}` with exit code `1`, so the agent can react instead of crashing.
+
+```
+python scripts/video.py <probe|estimate|run> <input> [flags]
+```
+
+`<input>` is a local path, a video URL, or — when a workspace is configured — a **bare filename** that
+resolves against `inbox_dir`.
+
+Only `ffmpeg`/`ffprobe` (and `yt-dlp` for URLs) are required for the free paths. Transcription engines are
+imported lazily, so a missing optional dependency never breaks `probe`/`estimate`.
+
+---
+
+## `probe` — inspect the input
+
+```bash
+python scripts/video.py probe "clip.mp4"
+python scripts/video.py probe "https://youtu.be/VIDEO_ID"
+```
+
+**Local output:**
+```json
+{
+  "source": "local",
+  "input": "clip.mp4",
+  "sidecar_transcript": null,        // path to a .srt/.vtt/.txt next to the file, if any
+  "captions_available": false,       // true if a sidecar exists
+  "duration_s": 73.6,
+  "width": 1920, "height": 1080,
+  "fps": 30.0,
+  "has_audio": true
+}
+```
+
+**URL output** adds `"title"` and `"captions_available"` (true if the platform exposes subs/auto-captions),
+and `source` is `"url"`.
+
+---
+
+## `estimate` — price the job (the cost gate)
+
+```bash
+python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper --human
+```
+
+| flag | default | meaning |
+|---|---|---|
+| `--tier` | `both` | `visual` / `audio` / `both` — which channels to price |
+| `--backend` | `captions` | transcription backend to price (see [backends](../skill/references/backends.md)) |
+| `--frames` | adaptive | override the frame count |
+| `--out-words` | `600` | assumed length of Claude's written answer (drives output-token cost) |
+| `--human` | off | print a readable table instead of JSON |
+
+**JSON output:**
+```json
+{
+  "input": "clip.mp4", "source": "local", "duration_s": 73.6,
+  "tier": "both", "backend": "faster-whisper", "frames": 60, "per_frame_tokens": 197,
+  "tokens": { "frames": 11820, "transcript": 245, "output": 798, "overhead": 2000, "read_total": 14065 },
+  "cost_usd": { "transcription": 0.0, "agent": 0.27, "total": 0.27 },
+  "dominant_cost": "frames",
+  "free": true,                       // no out-of-pocket $ (agent tokens may still apply)
+  "needs_install": false,             // chosen local backend isn't installed yet
+  "sidecar_transcript": null,
+  "captions_available": false
+}
+```
+
+`--human` renders the same data as:
+```
+input: clip.mp4  (local, 73.6s)
+tier=both  backend=faster-whisper  frames=60
+  frames tokens:        11820
+  transcript tokens:      245
+  output tokens:          798
+  ---
+  transcription: $0.0000
+  agent tokens:  $0.2700
+  TOTAL:         $0.2700   (dominant: frames)
+```
+
+**This is the gate.** The agent shows this to you and waits if `free` is false **or** `needs_install` is true.
+
+---
+
+## `run` — extract frames + transcript
+
+```bash
+python scripts/video.py run "clip.mp4" --tier both --backend faster-whisper
+python scripts/video.py run "clip.mp4" --tier audio --backend groq --start 60 --end 180
+```
+
+| flag | default | meaning |
+|---|---|---|
+| `--tier` | `both` | `visual` / `audio` / `both` |
+| `--backend` | `captions` | transcription backend |
+| `--frames` | adaptive | override frame count |
+| `--start` / `--end` | `0` / full | analyze only a time window (seconds) |
+| `--workdir` | temp dir | where to write outputs (frames, transcript, manifest) |
+| `--human` | off | (run always emits JSON; flag is accepted for symmetry) |
+
+**Output** (also written to `<workdir>/manifest.json`):
+```json
+{
+  "workdir": "/tmp/readvideo_ab12",
+  "tier": "both",
+  "backend": "faster-whisper",
+  "frames": [
+    { "file": ".../frames/frame_0001.jpg", "t": "00:01" },
+    { "file": ".../frames/frame_0002.jpg", "t": "00:03" }
+  ],
+  "transcript": ".../transcript.txt",
+  "transcript_chars": 254
+}
+```
+
+Each frame carries the `[MM:SS]` timestamp of its window midpoint, so Claude can cite moments precisely. The
+agent then `Read`s the listed JPGs and the transcript file and writes the answer.
+
+> `faster-whisper` prints which model it actually used to **stderr** (`[read-video] faster-whisper model: small`,
+> or a `WARNING` if it fell back). Watch that line — it tells you whether you got full accuracy.
+
+---
+
+## Environment variables
+
+| var | used by |
+|---|---|
+| `GROQ_API_KEY` / `OPENAI_API_KEY` / `OPENROUTER_API_KEY` / `GEMINI_API_KEY` | the matching paid backend |
+| `READ_VIDEO_WHISPER_MODEL` | override faster-whisper size (`tiny`/`base`/`small`/`medium`/`large-v3`) or a model-dir path |
+| `READ_VIDEO_WHISPER_DIR` | faster-whisper `download_root` / cache dir |
+
+Keys are read **only** from the environment — never from `.env`.
+
+## Config files (in the skill dir)
+
+- **`pricing.json`** — `transcription_per_min[backend]`, `model_per_mtok._active` + rate table, `frame.target_width`.
+- **`workspace.json`** (gitignored; copy from `workspace.example.json`) — `inbox_dir`, `out_dir`, `whisper_model`.
