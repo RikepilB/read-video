@@ -9,6 +9,8 @@ so you always see the price before any work happens.
 > The expensive part is usually Claude's own token usage (frames dominate), so this skill prices the whole
 > job up front and lets you decide go / skip.
 
+![read-video demo: probe then estimate, showing the cost gate before any work](assets/demo.gif)
+
 ---
 
 ## Why it exists
