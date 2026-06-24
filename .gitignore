@@ -1,0 +1,35 @@
+# --- Personal machine config (absolute paths to YOUR vault) — never commit ---
+skill/workspace.json
+workspace.json
+
+# --- Local media + generated transcripts (private content) ---
+samples/*
+!samples/.gitkeep
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.wav
+*.m4a
+*.mp3
+*.srt
+*.vtt
+
+# --- Secrets ---
+.env
+.env.*
+*.key
+*.pem
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
