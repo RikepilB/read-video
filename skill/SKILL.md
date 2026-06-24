@@ -63,6 +63,16 @@ relay the error (bad path, private/region-locked URL, missing tool) — don't gu
 Bias toward the cheapest tier that answers the question. A `sidecar_transcript` or
 `captions_available: true` makes the audio side free, so `both` is usually fine there.
 
+**Screen recordings / demos / silent clips → prefer `visual`.** A lot of "read this video" inputs are
+narration-free screen captures (a UI walkthrough, a website demo, a slideshow) — the audio track is just
+silence or background music. The value is entirely in the frames, and running audio there wastes time and
+yields nothing useful. Signals it's likely silent: a desktop/browser-shaped resolution, a filename like
+"Screen Recording …" / "… - Google Chrome …", or the user describing a UI/website rather than people
+talking. When in doubt and the clip is short, `both` is safe (the engine skips silence with VAD, so a
+silent track costs little) — but if you already ran `both` and `transcript_chars` came back tiny relative
+to the duration (e.g. a few hundred chars for several minutes), that's a silent/music track: ignore the
+transcript and answer from the frames.
+
 ### 3. COST GATE — the point of this skill
 Always run `estimate` for the tier/backend you picked **before** `run`:
 
@@ -112,6 +122,7 @@ again.
 
 ## Notes
 - **Frames are the dominant cost.** The frame budget auto-scales with duration (≤30s→30, ≤3min→60, ≤10min→80, >10min→100, hard caps 2 fps / 100 frames). Lower `--frames` or window with `--start/--end` to cut cost.
+- **Speed**: extraction grabs each frame with an independent fast input seek (parallel), not a full-stream decode — so wall-clock scales with frame *count*, not video length or fps (a 9-min 60 fps clip extracts in seconds). Local `faster-whisper` runs with VAD (silence-skipping) and is fed the media directly (no intermediate mp3), so silent/sparse audio finishes fast. If a run still feels slow, it's the model: a smaller `whisper_model`, or `--tier visual` when there's no speech, is the lever.
 - **Token rates** for the agent-cost estimate live in `pricing.json` (`model_per_mtok._active`). If the user runs a different model, update `_active` so the estimate stays honest.
-- **Long audio + paid APIs**: audio is sent as mono 64 kbps mp3 (~0.5 MB/min), so up to ~50 min fits the providers' ~25 MB upload cap. Beyond that, prefer captions or a local backend, or window with `--start/--end` (chunking is not implemented in v1). API calls use no SDK (pure stdlib `urllib`) and retry on 429 / transient network errors. Keys are read **only** from environment variables — the skill never scans `.env` files.
+- **Long audio + paid APIs**: for the **API** backends only, audio is re-encoded to mono 64 kbps mp3 (~0.5 MB/min) so up to ~50 min fits the providers' ~25 MB upload cap; beyond that, prefer captions or a local backend, or window with `--start/--end` (chunking is not implemented in v1). Local `faster-whisper`/`trx` skip that step and read the media directly. API calls use no SDK (pure stdlib `urllib`) and retry on 429 / transient network errors. Keys are read **only** from environment variables — the skill never scans `.env` files.
 - Prior art reused: `bradautomates/claude-video` (MIT, frame/caption logic), `crafter-station/trx` (MIT, local transcription).

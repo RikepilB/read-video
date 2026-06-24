@@ -305,21 +305,60 @@ def _download(url: str, wd: Path) -> str:
 
 def _extract_frames(media: str | None, wd: Path, n: int, start: float,
                     window: float, target_w: int) -> list[dict[str, str]]:
+    """Sample n evenly-spaced frames, scaling to target_w in the same pass.
+
+    Each frame is grabbed with a *fast input seek* (`-ss` before `-i`, one frame out) instead of a
+    single `fps=` filter pass. The filter approach must decode the entire stream to drop all but n
+    frames — on a long, high-fps source (e.g. 9 min @ 60 fps that's ~33k decoded frames) that is the
+    dominant cost. Fast seeks jump near each target keyframe and decode ~1 frame, so cost scales with
+    n, not duration. Seeks are independent, so a small thread pool overlaps the ffmpeg subprocesses.
+    Keyframe-accurate (not exact) seeking is fine here: we want the gist of each moment, not a precise
+    cut. Falls back to the whole-stream filter pass if seeking yields nothing (odd container/codec)."""
     if not media:
         raise RuntimeError("frame extraction needs a media file")
     fdir = wd / "frames"
     fdir.mkdir(exist_ok=True)
+    interval = window / n
+    jobs = [(k, start + (k - 0.5) * interval, fdir / f"frame_{k:04d}.jpg")
+            for k in range(1, n + 1)]            # midpoint of each frame's window
+
+    def grab(job: tuple[int, float, Path]) -> tuple[tuple[int, float, Path], bool]:
+        _, t, fp = job
+        cp = run_cmd(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                      "-ss", f"{t:.3f}", "-i", media, "-frames:v", "1", "-an",
+                      "-vf", f"scale={target_w}:-2", "-q:v", "3", str(fp)])
+        return job, cp.returncode == 0 and fp.exists()
+
+    from concurrent.futures import ThreadPoolExecutor
+    workers = max(2, min(8, (os.cpu_count() or 4)))
+    ok: list[tuple[int, float, Path]] = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for job, success in ex.map(grab, jobs):
+            if success:
+                ok.append(job)
+
+    if not ok:                                    # seeking produced nothing — robust single-pass path
+        return _extract_frames_filter(media, fdir, n, start, window, target_w)
+
+    return [{"file": str(fp), "t": f"{int(t // 60):02d}:{int(t % 60):02d}"}
+            for _, t, fp in sorted(ok)]
+
+
+def _extract_frames_filter(media: str, fdir: Path, n: int, start: float,
+                           window: float, target_w: int) -> list[dict[str, str]]:
+    """Whole-stream `fps=` fallback: slower (decodes everything) but handles containers that don't
+    seek cleanly. Only used when per-frame seeking grabbed zero frames."""
     fps = n / window if window > 0 else 1.0
-    vf = f"fps={fps:.6f},scale={target_w}:-2"
     cp = run_cmd(["ffmpeg", "-hide_banner", "-loglevel", "error",
                   "-ss", str(start), "-t", str(window), "-i", media,
-                  "-vf", vf, "-q:v", "3", str(fdir / "frame_%04d.jpg")])
+                  "-vf", f"fps={fps:.6f},scale={target_w}:-2", "-q:v", "3",
+                  str(fdir / "frame_%04d.jpg")])
     if cp.returncode != 0:
         raise RuntimeError(f"ffmpeg frame extraction failed: {cp.stderr.strip()[:200]}")
     interval = window / n
     out = []
     for k, fp in enumerate(sorted(fdir.glob("frame_*.jpg")), start=1):
-        t = start + (k - 0.5) * interval          # midpoint of the frame's window
+        t = start + (k - 0.5) * interval
         out.append({"file": str(fp), "t": f"{int(t // 60):02d}:{int(t % 60):02d}"})
     return out
 
@@ -340,7 +379,9 @@ def _transcribe(orig: str, info: dict[str, Any], media: str | None,
     if backend == "trx" and which("trx"):
         return _save_transcript(wd, _trx(media or orig))
     if backend in ("faster-whisper", "local") and _have("faster_whisper"):
-        return _save_transcript(wd, _faster_whisper(_to_audio(media or orig, wd)))
+        # faster-whisper decodes audio itself (PyAV/ffmpeg), so hand it the media directly instead of
+        # paying for a separate lossy mp3 pass — that pass exists only to fit the API upload cap.
+        return _save_transcript(wd, _faster_whisper(media or orig))
     if backend in BACKEND_API:
         return _save_transcript(wd, _api_transcribe(backend, _to_audio(media or orig, wd)))
     if backend == "gemini":
@@ -490,8 +531,15 @@ def _faster_whisper(audio: str, model_size: str | None = None,
     else:
         print(f"[read-video] faster-whisper model: {used}", file=sys.stderr)
 
-    segments, _ = model.transcribe(audio)
-    return "\n".join(f"[{_ts(s.start)}] {s.text.strip()}" for s in segments)
+    # vad_filter skips non-speech via Silero VAD: on sparse/silent audio (e.g. a screen recording with
+    # only background music) it transcribes seconds instead of minutes AND avoids Whisper hallucinating
+    # text over silence. The bundled VAD adds no extra dependency.
+    try:
+        segments, _ = model.transcribe(audio, vad_filter=True)
+        return "\n".join(f"[{_ts(s.start)}] {s.text.strip()}" for s in segments)
+    except (TypeError, ValueError):                # older faster-whisper without VAD support
+        segments, _ = model.transcribe(audio)
+        return "\n".join(f"[{_ts(s.start)}] {s.text.strip()}" for s in segments)
 
 
 def _trx(src: str) -> str:

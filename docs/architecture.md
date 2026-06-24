@@ -94,8 +94,9 @@ sidecar .srt/.vtt   (free, already on disk)
 The paid backends are all **OpenAI-compatible** `/audio/transcriptions` endpoints, hit with a hand-built
 multipart body over pure-stdlib `urllib` — **no SDK install**. Two robustness details matter:
 
-- **mp3, not wav.** Audio is extracted as mono 16 kHz **64 kbps mp3** (~0.5 MB/min), so ~50 minutes fits the
-  providers' ~25 MB upload cap. (wav at ~1.9 MB/min blows the cap after ~13 min.)
+- **mp3, not wav.** For the **API** path, audio is extracted as mono 16 kHz **64 kbps mp3** (~0.5 MB/min), so
+  ~50 minutes fits the providers' ~25 MB upload cap. (wav at ~1.9 MB/min blows the cap after ~13 min.) Local
+  backends skip this encode and read the media directly (see Performance below).
 - **Groq's WAF.** Groq sits behind Cloudflare, which 403s the default `urllib` User-Agent — so requests send
   a custom UA. 429s and network resets get exponential-backoff retry.
 
@@ -113,6 +114,30 @@ this project in testing:
 
 Model size is configurable (`whisper_model` in `workspace.json`, or `READ_VIDEO_WHISPER_MODEL` /
 `READ_VIDEO_WHISPER_DIR` env). Default is **`small`** — the accuracy/size sweet spot for non-English speech.
+
+## Performance
+
+The naïve implementations of both channels scale with *video length*; the engine makes them scale with the
+*work actually requested* instead.
+
+- **Frame extraction scales with frame count, not duration.** A single `fps=N/duration` filter pass forces
+  ffmpeg to decode the entire stream and discard all but N frames — on a 9-min 60 fps source that's ~33k
+  decoded frames to keep 80. Instead, each sampled frame is grabbed with an independent **fast input seek**
+  (`-ss` *before* `-i`, one frame out, scaled in the same pass), and the seeks run in a small thread pool.
+  Cost becomes O(frames), not O(duration × fps): the same 9-min clip extracts in ~5 s instead of minutes.
+  Seeking is keyframe-accurate rather than exact, which is the right trade for *sampling the gist* of each
+  moment. A whole-stream filter pass remains as a fallback for containers that don't seek cleanly.
+- **Local transcription reads the media directly.** `faster-whisper` decodes audio itself (PyAV/ffmpeg), so
+  the engine hands it the source file — no separate lossy mp3 pass (that exists only to satisfy the API
+  upload cap), which also avoids the quality loss of a 64 kbps re-encode.
+- **VAD skips silence.** Local transcription runs with Silero **VAD** (`vad_filter=True`, no extra
+  dependency). On sparse or silent audio — e.g. a screen recording with only background music — Whisper
+  processes the speech segments instead of the whole timeline, turning minutes of work into seconds. It also
+  suppresses Whisper's tendency to *hallucinate* text over silence, so a near-silent clip returns an
+  honestly-empty transcript instead of plausible-looking noise.
+
+Net effect on a 9-min 1080p60 screen recording: a `both`-tier run dropped from ~12 min to well under a
+minute, with the frame pass alone going from the dominant cost to ~5 s.
 
 ## Security posture
 
