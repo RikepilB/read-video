@@ -97,9 +97,13 @@ It writes a workdir containing `frames/frame_XXXX.jpg`, `transcript.txt`, and `m
 
 **sidecar (free) → URL captions (free) → local `faster-whisper`/`trx` (free, CPU) → Groq (cheapest API) → OpenAI-mini → OpenAI → OpenRouter / Gemini.**
 
-`--backend` forces one; otherwise pass the backend you priced at the gate. Backend setup, keys, and
-per-minute costs live in `references/backends.md` — read it when a backend errors on a missing key
-or install.
+`--backend` forces one; otherwise pass the backend you priced at the gate. You can also pass a
+**comma-separated chain** — `--backend openrouter,groq` — to try each in order and fall through on any
+failure (out of credits, rate limit, missing key). Useful for spending a limited/cheaper key first and
+falling back automatically. The chain is **priced at the gate by its first hop**, so estimate/approve
+against the most expensive realistic path. (Audio is extracted once and reused across hops.) Backend
+setup, keys, and per-minute costs live in `references/backends.md` — read it when a backend errors on a
+missing key or install.
 
 ### 5. Read and answer
 `Read` the frames from the workdir `frames/` folder (in filename order) and `transcript.txt`. Then:

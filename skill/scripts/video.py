@@ -216,6 +216,7 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     dur_min = dur / 60.0
     want_frames = tier in ("visual", "both")
     want_audio = tier in ("audio", "both")
+    primary = backend.split(",")[0].strip() if backend else backend   # a chain is priced by its first hop
 
     n = frames if frames else adaptive_frames(dur)
     target_w = int(pr.get("frame", {}).get("target_width", 512))
@@ -225,7 +226,7 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     transcript_tokens = round(dur_min * 200) if want_audio else 0   # ~150 wpm * 1.33 tok/word
     output_tokens = round(out_words * 1.33)
 
-    rate = pr["transcription_per_min"].get(backend, 0.0) if want_audio else 0.0
+    rate = pr["transcription_per_min"].get(primary, 0.0) if want_audio else 0.0
     transcription_usd = round(dur_min * rate, 4)
 
     mrates = pr["model_per_mtok"]
@@ -237,8 +238,8 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     total = round(transcription_usd + agent_usd, 4)
 
     drivers = {"frames": frames_tokens, "transcript": transcript_tokens, "output": output_tokens}
-    needs_install = want_audio and backend in ("trx", "faster-whisper", "local") \
-        and not _have_local_backend(backend) and not info.get("sidecar_transcript")
+    needs_install = want_audio and primary in ("trx", "faster-whisper", "local") \
+        and not _have_local_backend(primary) and not info.get("sidecar_transcript")
     return {
         "input": inp, "source": info["source"], "duration_s": dur, "tier": tier,
         "backend": backend if want_audio else "none",
@@ -366,9 +367,29 @@ def _extract_frames_filter(media: str, fdir: Path, n: int, start: float,
 # --------------------------------------------------------------------------- transcription
 def _transcribe(orig: str, info: dict[str, Any], media: str | None,
                 wd: Path, backend: str) -> tuple[str, str]:
-    # Free sources first, regardless of the requested backend label.
+    # A sidecar transcript is free and beats any backend, so it short-circuits the whole chain.
     if info.get("sidecar_transcript"):
         return _save_transcript(wd, _read_sidecar(info["sidecar_transcript"]))
+    # `backend` may be a comma-separated chain ("openrouter,groq"): try each in order and fall through
+    # on any failure — out of credits, rate limit, missing key, not installed. Lets you spend a
+    # limited/cheaper key first and fall back to another without re-running. A single backend is just a
+    # one-element chain. (Audio is extracted once and reused across hops, so a fallback is cheap.)
+    chain = [b.strip() for b in backend.split(",") if b.strip()] or [backend]
+    if len(chain) == 1:
+        return _transcribe_one(orig, info, media, wd, chain[0])
+    errors: list[str] = []
+    for b in chain:
+        try:
+            return _transcribe_one(orig, info, media, wd, b)
+        except Exception as ex:
+            errors.append(f"{b}: {type(ex).__name__}: {str(ex)[:140]}")
+            print(f"[read-video] backend '{b}' failed -> falling back to next in chain. {errors[-1]}",
+                  file=sys.stderr)
+    raise RuntimeError("all transcription backends in the chain failed: " + " | ".join(errors))
+
+
+def _transcribe_one(orig: str, info: dict[str, Any], media: str | None,
+                    wd: Path, backend: str) -> tuple[str, str]:
     if backend == "captions" and info["source"] == "url":
         text = _fetch_captions(orig, wd)
         if text:
@@ -456,6 +477,8 @@ def _to_audio(src: str, wd: Path) -> str:
     """Mono 16kHz 64kbps mp3 — ~0.5 MB/min, so ~50 min fits the providers' ~25 MB upload cap.
     (wav would be ~1.9 MB/min and blow the cap after ~13 min.)"""
     out = str(wd / "audio.mp3")
+    if Path(out).exists() and Path(out).stat().st_size > 0:
+        return out                                    # reuse within a run (e.g. across a backend chain)
     cp = run_cmd(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", src,
                   "-vn", "-acodec", "libmp3lame", "-ar", "16000", "-ac", "1", "-b:a", "64k", out])
     if cp.returncode != 0:
