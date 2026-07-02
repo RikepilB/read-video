@@ -258,7 +258,8 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
 # --------------------------------------------------------------------------- run
 def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = "captions",
         start: float = 0.0, end: float | None = None,
-        workdir: str | None = None, pr: dict[str, Any] | None = None) -> dict[str, Any]:
+        workdir: str | None = None, pr: dict[str, Any] | None = None,
+        timestamps: str | None = None, dedup: bool = True) -> dict[str, Any]:
     pr = pr or load_pricing()
     info = probe(inp)
     dur = info["duration_s"] or 0.0
@@ -283,8 +284,9 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
                               "backend": backend if want_audio else "none",
                               "frames": [], "transcript": None}
     if want_frames:
-        result["frames"] = _extract_frames(media, wd, n, start, window,
-                                           int(pr.get("frame", {}).get("target_width", 512)))
+        result["frames"], result["frames_deduped"] = _extract_frames(
+            media, wd, n, start, window,
+            int(pr.get("frame", {}).get("target_width", 512)), dedup=dedup)
     if want_audio:
         tpath, text = _transcribe(inp, info, media, wd, backend)
         result["transcript"] = tpath
@@ -306,26 +308,34 @@ def _download(url: str, wd: Path) -> str:
 
 
 def _extract_frames(media: str | None, wd: Path, n: int, start: float,
-                    window: float, target_w: int) -> list[dict[str, str]]:
-    """Sample n evenly-spaced frames, scaling to target_w in the same pass.
+                    window: float, target_w: int, dedup: bool = True,
+                    pins: list[float] | None = None) -> tuple[list[dict[str, Any]], int]:
+    """Extract up to n frames: oversample 2x the budget with parallel fast seeks, drop
+    perceptual near-duplicates, then even-sample down to the budget.
 
     Each frame is grabbed with a *fast input seek* (`-ss` before `-i`, one frame out) instead of a
     single `fps=` filter pass. The filter approach must decode the entire stream to drop all but n
     frames — on a long, high-fps source (e.g. 9 min @ 60 fps that's ~33k decoded frames) that is the
     dominant cost. Fast seeks jump near each target keyframe and decode ~1 frame, so cost scales with
-    n, not duration. Seeks are independent, so a small thread pool overlaps the ffmpeg subprocesses.
-    Keyframe-accurate (not exact) seeking is fine here: we want the gist of each moment, not a precise
-    cut. Falls back to the whole-stream filter pass if seeking yields nothing (odd container/codec)."""
+    frame count, not duration. Oversampling (bounded by the same 2 fps cap as the budget) gives the
+    dedup pass near-duplicates to discard, so the budget goes to distinct content instead of held
+    slides. `pins` are exact-moment frames the caller reserved; they always survive dedup and the
+    cap. Falls back to the whole-stream filter pass if seeking yields nothing (odd container)."""
     if not media:
         raise RuntimeError("frame extraction needs a media file")
     fdir = wd / "frames"
     fdir.mkdir(exist_ok=True)
-    interval = window / n
-    jobs = [(k, start + (k - 0.5) * interval, fdir / f"frame_{k:04d}.jpg")
-            for k in range(1, n + 1)]            # midpoint of each frame's window
+    pins = sorted(pins or [])
+    slots = max(0, n - len(pins))
+    cand_n = max(slots, min(2 * slots, max(1, int(window * 2)))) if slots else 0
+    interval = window / cand_n if cand_n else 0.0
+    times = [(start + (k - 0.5) * interval, False) for k in range(1, cand_n + 1)]
+    times += [(t, True) for t in pins]
+    times.sort()
+    jobs = [(t, fdir / f"frame_{i:04d}.jpg", pin) for i, (t, pin) in enumerate(times, start=1)]
 
-    def grab(job: tuple[int, float, Path]) -> tuple[tuple[int, float, Path], bool]:
-        _, t, fp = job
+    def grab(job: tuple[float, Path, bool]) -> tuple[tuple[float, Path, bool], bool]:
+        t, fp, _pin = job
         cp = run_cmd(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                       "-ss", f"{t:.3f}", "-i", media, "-frames:v", "1", "-an",
                       "-vf", f"scale={target_w}:-2", "-q:v", "3", str(fp)])
@@ -333,17 +343,25 @@ def _extract_frames(media: str | None, wd: Path, n: int, start: float,
 
     from concurrent.futures import ThreadPoolExecutor
     workers = max(2, min(8, (os.cpu_count() or 4)))
-    ok: list[tuple[int, float, Path]] = []
+    ok: list[tuple[float, Path, bool]] = []
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for job, success in ex.map(grab, jobs):
             if success:
                 ok.append(job)
 
     if not ok:                                    # seeking produced nothing — robust single-pass path
-        return _extract_frames_filter(media, fdir, n, start, window, target_w)
+        return _extract_frames_filter(media, fdir, n, start, window, target_w), 0
 
-    return [{"file": str(fp), "t": f"{int(t // 60):02d}:{int(t % 60):02d}"}
-            for _, t, fp in sorted(ok)]
+    ok = _reindex_jobs(ok)                        # gap-free numbering for the thumbnail pass
+    deduped = 0
+    if dedup and len(ok) > 1:
+        thumbs = _thumb_frames([fp for _t, fp, _p in ok])
+        if thumbs:
+            ok, deduped = _dedupe_jobs(ok, thumbs)
+        else:
+            print("[read-video] WARNING: thumbnail pass failed — dedup skipped", file=sys.stderr)
+    ok = _cap_jobs(ok, n)
+    return _jobs_to_entries(_reindex_jobs(ok)), deduped
 
 
 def _extract_frames_filter(media: str, fdir: Path, n: int, start: float,
@@ -406,6 +424,49 @@ def _thumb_frames(paths: list[Path]) -> list[bytes]:
     if cp.returncode != 0 or len(raw) != size * len(paths):
         return []
     return [raw[i * size:(i + 1) * size] for i in range(len(paths))]
+
+
+def _reindex_jobs(jobs: list[tuple[float, Path, bool]]) -> list[tuple[float, Path, bool]]:
+    """Rename to a chronological, gap-free frame_0001.jpg... sequence (required both by
+    _thumb_frames' %04d input pattern and by the read-in-filename-order contract).
+    Ascending rename is collision-safe: a frame only ever moves to an index <= its own."""
+    out = []
+    for i, (t, fp, pin) in enumerate(sorted(jobs), start=1):
+        target = fp.with_name(f"frame_{i:04d}.jpg")
+        if fp != target:
+            fp.replace(target)
+        out.append((t, target, pin))
+    return out
+
+
+def _cap_jobs(jobs: list[tuple[float, Path, bool]], n: int) -> list[tuple[float, Path, bool]]:
+    """Even-sample chronological jobs down to n, never dropping pinned ones.
+    Deletes culled JPEGs."""
+    if len(jobs) <= n:
+        return jobs
+    pinned = [j for j in jobs if j[2]]
+    others = [j for j in jobs if not j[2]]
+    slots = max(0, n - len(pinned))
+    keep_idx = {int(i * len(others) / slots) for i in range(slots)} if slots else set()
+    kept, culled = [], []
+    for i, j in enumerate(others):
+        (kept if i in keep_idx else culled).append(j)
+    for _t, fp, _pin in culled:
+        try:
+            fp.unlink()
+        except OSError:
+            pass
+    return sorted(kept + pinned)
+
+
+def _jobs_to_entries(jobs: list[tuple[float, Path, bool]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for t, fp, pin in jobs:
+        e: dict[str, Any] = {"file": str(fp), "t": _ts(t)}
+        if pin:
+            e["pinned"] = True
+        out.append(e)
+    return out
 
 
 def _dedupe_jobs(jobs: list[tuple[float, Path, bool]], thumbs: list[bytes],
@@ -803,6 +864,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--start", type=float, default=0.0)
     r.add_argument("--end", type=float)
     r.add_argument("--workdir")
+    r.add_argument("--no-dedup", action="store_true",
+                   help="keep every sampled frame (skip the near-duplicate drop)")
+    r.add_argument("--timestamps", help="comma-separated SS/MM:SS/HH:MM:SS pins, e.g. 90,05:30")
 
     for sp in (p, e, r):
         sp.add_argument("--human", action="store_true", help="readable output instead of JSON")
@@ -814,7 +878,8 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "estimate":
             _emit(estimate(a.input, a.frames, a.backend, a.out_words, a.tier), a.human)
         elif a.cmd == "run":
-            _emit(run(a.input, a.tier, a.frames, a.backend, a.start, a.end, a.workdir), a.human)
+            _emit(run(a.input, a.tier, a.frames, a.backend, a.start, a.end, a.workdir,
+                      timestamps=a.timestamps, dedup=not a.no_dedup), a.human)
     except Exception as ex:                       # surface as JSON so the agent can react
         print(json.dumps({"error": str(ex)}))
         return 1
