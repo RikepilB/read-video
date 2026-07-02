@@ -12,6 +12,13 @@ sys.path.insert(0, str(REPO / "skill" / "scripts"))
 HAVE_FFMPEG = shutil.which("ffmpeg") is not None
 requires_ffmpeg = pytest.mark.skipif(not HAVE_FFMPEG, reason="ffmpeg not on PATH")
 
+HAVE_POWERSHELL = shutil.which("powershell") is not None or shutil.which("pwsh") is not None
+requires_powershell = pytest.mark.skipif(not HAVE_POWERSHELL, reason="powershell/pwsh not on PATH")
+
+
+def powershell_exe() -> str:
+    return shutil.which("pwsh") or shutil.which("powershell")
+
 
 def _ffmpeg(*args: str) -> None:
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args],
