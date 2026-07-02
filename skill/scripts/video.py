@@ -490,6 +490,24 @@ def _ts(seconds: float) -> str:
     return f"{int(seconds // 60):02d}:{int(seconds % 60):02d}"
 
 
+def _parse_timestamp(value: str) -> float:
+    """Parse 'SS', 'MM:SS', or 'HH:MM:SS' (each part may carry .ms) into seconds."""
+    s = str(value).strip()
+    parts = s.split(":") if s else []
+    if not parts or len(parts) > 3:
+        raise ValueError(f"bad timestamp: {value!r} (want SS, MM:SS, or HH:MM:SS)")
+    try:
+        nums = [float(p) for p in parts]
+    except ValueError:
+        raise ValueError(f"bad timestamp: {value!r} (want SS, MM:SS, or HH:MM:SS)")
+    if any(x < 0 for x in nums):
+        raise ValueError(f"bad timestamp: {value!r} (negative component)")
+    sec = 0.0
+    for x in nums:
+        sec = sec * 60 + x
+    return sec
+
+
 def _whisper_settings() -> tuple[str, str | None]:
     """Resolve the faster-whisper model + optional download dir from env, then workspace.json.
     Env wins so a machine can override without editing config: READ_VIDEO_WHISPER_MODEL (a size
