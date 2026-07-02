@@ -29,10 +29,15 @@ def static_clip(tmp_path_factory) -> Path:
 
 @pytest.fixture(scope="session")
 def scene_clip(tmp_path_factory) -> Path:
-    """6s: red -> green -> blue, 2s each — three visually distinct scenes."""
+    """6s: red -> lime -> blue, 2s each — three visually distinct scenes.
+
+    Uses 'lime' (0x00FF00) rather than CSS 'green' (0x008000): perceptual dedup compares
+    grayscale luma, and CSS green's luma (~76) coincidentally lands right next to red's
+    (~76), making the two indistinguishable under a luma-only diff. Lime's luma (~150) is
+    far from both, so all three scenes are actually distinct under the system's metric."""
     out = tmp_path_factory.mktemp("clips") / "scenes.mp4"
     _ffmpeg("-f", "lavfi", "-i", "color=c=red:s=320x240:d=2:r=10",
-            "-f", "lavfi", "-i", "color=c=green:s=320x240:d=2:r=10",
+            "-f", "lavfi", "-i", "color=c=lime:s=320x240:d=2:r=10",
             "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=2:r=10",
             "-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0",
             "-pix_fmt", "yuv420p", str(out))
