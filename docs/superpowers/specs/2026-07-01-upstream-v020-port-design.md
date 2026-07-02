@@ -92,6 +92,8 @@ Applies to paid API backends only (`groq`, `openai`, `openai-mini`, `gemini`); l
 - Each timestamp becomes a pinned frame: fast-seeked exactly, reserved against the frame budget,
   never dropped by dedup, marked `"pinned": true` in the manifest.
 - Out-of-range timestamps (beyond duration) are skipped with a stderr warning; the run continues.
+- Pins count against the frame budget. If the pin list alone exceeds the budget, the first
+  `budget` pins (in timestamp order) are honored and the rest are skipped with a stderr warning.
 
 ### 4. Subprocess hardening
 
