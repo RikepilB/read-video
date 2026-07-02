@@ -161,7 +161,11 @@ read-video/
 │   ├── architecture.md        ← how/why it's built this way (the cost model, channels, cascade)
 │   ├── cli-reference.md       ← the engine "API": probe / estimate / run, flags, JSON shapes
 │   ├── workflow.md            ← the agent decision flow + output contract
-│   └── evals.md               ← skill-creator eval methodology + results
+│   ├── evals.md               ← skill-creator eval methodology + results
+│   └── harness-support.md     ← multi-harness install (Claude Code + Codex/Gemini CLI/Copilot CLI)
+├── scripts/
+│   ├── install-skill.ps1      ← installs skill/ to both ~/.claude/skills/ and ~/.agents/skills/
+│   └── install-skill.sh       ← bash parity (macOS/Linux/Git Bash)
 ├── skill/                     ← the installable skill (copy → ~/.claude/skills/read-video/)
 │   ├── SKILL.md
 │   ├── scripts/video.py

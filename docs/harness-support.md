@@ -46,7 +46,8 @@ step and two verification checks (frontmatter parses, `video.py probe --help` ru
 Claude Code installed still succeeds overall (the `~/.agents/skills/` copy just sits there ready
 for whichever of Codex/Gemini CLI/Copilot CLI gets installed later).
 
-Override the install roots (used by the test suite, or if you keep skills somewhere non-default):
+Override the install roots (the PS1 flags below are exercised by the test suite; the Bash env vars
+are parity-only and manually verified). Use either if you keep skills somewhere non-default:
 
 ```powershell
 .\scripts\install-skill.ps1 -ClaudeSkillsRoot "D:\custom\claude\skills" -AgentsSkillsRoot "D:\custom\agents\skills"
