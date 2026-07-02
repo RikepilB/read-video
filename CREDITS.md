@@ -10,6 +10,9 @@
   Cloudflare-WAF User-Agent workaround, and rolling-caption de-duplication for auto-generated subtitles.
   `read-video` diverges deliberately on two points: a **cost pre-flight gate** (price the whole job before
   any spend) and **env-var-only key handling** (it never scans or auto-loads `.env` files).
+- v0.2.0 (2026-06): perceptual frame dedup (16x16 grayscale single-pass thumbnails),
+  Whisper API auto-chunking with per-chunk gap tolerance, and `--timestamps` pinned
+  frames were ported and adapted to this skill's fast-seek extraction and backend chain.
 
 ## Runtime dependencies
 
