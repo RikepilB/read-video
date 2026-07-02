@@ -73,3 +73,27 @@ def test_install_preserves_existing_local_config(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert (dest / ".env").read_text(encoding="utf-8") == "SECRET_KEY=do-not-touch"
     assert (dest / "workspace.json").read_text(encoding="utf-8") == '{"inbox_dir": "keep-me"}'
+
+
+@requires_powershell
+def test_install_reports_verification_ok_for_both_targets(tmp_path):
+    claude_root = tmp_path / "claude_skills"
+    agents_root = tmp_path / "agents_skills"
+
+    result = _run_install(claude_root, agents_root)
+
+    assert "RESULT claude verify:frontmatter OK" in result.stdout
+    assert "RESULT agents verify:frontmatter OK" in result.stdout
+    assert "RESULT claude verify:cli OK" in result.stdout
+    assert "RESULT agents verify:cli OK" in result.stdout
+
+
+@requires_powershell
+def test_install_prints_summary_line(tmp_path):
+    claude_root = tmp_path / "claude_skills"
+    agents_root = tmp_path / "agents_skills"
+
+    result = _run_install(claude_root, agents_root)
+
+    assert "SUMMARY install complete" in result.stdout
+    assert result.returncode == 0
