@@ -780,6 +780,48 @@ def _resp_to_text(data: dict[str, Any]) -> str:
     return (data.get("text") or "").strip()
 
 
+# Providers cap uploads at ~25 MB; keep 1 MB of headroom so a rounding wobble never 413s.
+_API_UPLOAD_CAP = 24 * 1024 * 1024
+
+
+def _audio_duration(path: str) -> float:
+    cp = run_cmd(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format",
+                  str(Path(path).resolve())])
+    if cp.returncode != 0:
+        raise RuntimeError(f"ffprobe on audio failed: {cp.stderr.strip()[:200]}")
+    return float(json.loads(cp.stdout).get("format", {}).get("duration") or 0.0)
+
+
+def _split_audio(audio: str, max_bytes: int = _API_UPLOAD_CAP) -> list[tuple[str, float]]:
+    """Split an mp3 into even chunks each under max_bytes -> [(path, start_offset_s)].
+
+    Ported from claude-video v0.2.0: length alone must never break API transcription.
+    Stream-copy segmenting (no re-encode) is cheap and mp3 frames split cleanly. Offsets
+    come from ffprobe on each real chunk (not arithmetic), so timestamp shifts stay exact
+    even when the muxer lands segment boundaries off the requested time."""
+    size = Path(audio).stat().st_size
+    if size <= max_bytes:
+        return [(audio, 0.0)]
+    dur = _audio_duration(audio)
+    n_chunks = max(2, math.ceil(size * 1.05 / max_bytes))   # +5% so rounding never overshoots the cap
+    outpat = str(Path(audio).with_name("audio_chunk_%03d.mp3"))
+    cp = run_cmd(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                  "-i", str(Path(audio).resolve()),
+                  "-f", "segment", "-segment_time", f"{dur / n_chunks:.3f}",
+                  "-c", "copy", outpat])
+    if cp.returncode != 0:
+        raise RuntimeError(f"audio chunking failed: {cp.stderr.strip()[:200]}")
+    chunks = sorted(Path(audio).parent.glob("audio_chunk_*.mp3"))
+    if not chunks:
+        raise RuntimeError("audio chunking produced no files")
+    out: list[tuple[str, float]] = []
+    offset = 0.0
+    for c in chunks:
+        out.append((str(c), offset))
+        offset += _audio_duration(str(c))
+    return out
+
+
 def _api_transcribe(backend: str, audio: str) -> str:
     """POST the audio to an OpenAI-compatible /audio/transcriptions endpoint via stdlib urllib.
     Retries on 429 / transient network errors with exponential backoff."""
