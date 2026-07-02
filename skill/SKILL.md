@@ -3,20 +3,22 @@ name: read-video
 description: >-
   Analyze, summarize, transcribe, or answer questions about a video — a local file
   (.mp4/.mov/.mkv/.webm) or a video URL (YouTube, Loom, Vimeo, TikTok, X, etc.). Use this
-  whenever the user wants Claude to "watch", "read", "summarize", "describe", "transcribe", or
+  whenever the user wants the agent to "watch", "read", "summarize", "describe", "transcribe", or
   pull specific moments / quotes / timestamps out of video content — even if they never say the
   word "video" (e.g. "what does this Loom cover?", "summarize this youtube link", "what's on
   screen at 2:30?", "transcribe this screen recording", "what did they say about pricing?").
-  It extracts frames so Claude can SEE and a transcript so Claude can HEAR, and ALWAYS prices the
-  job up front so the user approves any spend or heavy step before it runs.
+  It extracts frames so the agent can see the visual track and a transcript so it can hear the
+  audio track, and ALWAYS prices the job up front so the user approves any spend or heavy step
+  before it runs.
 ---
 
 # Read Video
 
-Claude's `Read` tool renders images and PDFs — **not** video. So "reading" a video means converting
-it into two things Claude *can* consume: **frames** (JPEGs, the visual track) and a **transcript**
-(text, the audio track). The catch is that this costs real tokens — frames dominate — so this skill
-**estimates the whole job first** and only spends after the user (or a $0 threshold) approves.
+An agent's file-reading tool renders images and PDFs — **not** video. So "reading" a video means
+converting it into two things an agent *can* consume: **frames** (JPEGs, the visual track) and a
+**transcript** (text, the audio track). The catch is that this costs real tokens — frames
+dominate — so this skill **estimates the whole job first** and only spends after the user (or a
+$0 threshold) approves.
 
 Everything runs through one agent-first CLI. Drive it in order: `probe → estimate → [gate] → run`.
 
@@ -115,7 +117,7 @@ setup, keys, and per-minute costs live in `references/backends.md` — read it w
 missing key or install.
 
 ### 5. Read and answer
-`Read` the frames from the workdir `frames/` folder (in filename order) and `transcript.txt`. Then:
+Load the frames from the workdir `frames/` folder (in filename order) and `transcript.txt`. Then:
 
 - **If the user asked a specific question** → answer it directly, grounded in what you saw/heard, citing `[MM:SS]` for any moment you reference.
 - **Otherwise** → produce the default **timestamped chronological summary**:
