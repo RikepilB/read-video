@@ -267,6 +267,26 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
     window = max(0.1, end - start)
     n = frames if frames else adaptive_frames(window)
 
+    pins: list[float] = []
+    if timestamps:
+        for tok in timestamps.split(","):
+            try:
+                t = _parse_timestamp(tok)
+            except ValueError:
+                print(f"[read-video] WARNING: --timestamps entry {tok.strip()!r} invalid — skipped",
+                      file=sys.stderr)
+                continue
+            if not (start <= t <= end):
+                print(f"[read-video] WARNING: --timestamps {tok.strip()} outside "
+                      f"[{start:.0f}, {end:.0f}]s — skipped", file=sys.stderr)
+                continue
+            pins.append(t)
+        pins.sort()
+        if len(pins) > n:
+            print(f"[read-video] WARNING: {len(pins)} pins exceed the frame budget ({n}) — "
+                  f"keeping the first {n}", file=sys.stderr)
+            pins = pins[:n]
+
     wd = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="readvideo_"))
     wd.mkdir(parents=True, exist_ok=True)
 
@@ -286,7 +306,7 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
     if want_frames:
         result["frames"], result["frames_deduped"] = _extract_frames(
             media, wd, n, start, window,
-            int(pr.get("frame", {}).get("target_width", 512)), dedup=dedup)
+            int(pr.get("frame", {}).get("target_width", 512)), dedup=dedup, pins=pins)
     if want_audio:
         tpath, text = _transcribe(inp, info, media, wd, backend)
         result["transcript"] = tpath
