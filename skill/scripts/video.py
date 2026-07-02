@@ -379,10 +379,13 @@ def _extract_frames(media: str | None, wd: Path, n: int, start: float,
     ok = _reindex_jobs(ok)                        # gap-free numbering for the thumbnail pass
     deduped = 0
     if dedup and len(ok) > 1:
-        thumbs = _thumb_frames([fp for _t, fp, _p in ok])
-        if thumbs:
-            ok, deduped = _dedupe_jobs(ok, thumbs)
-        else:
+        try:
+            thumbs = _thumb_frames([fp for _t, fp, _p in ok])
+            if thumbs:
+                ok, deduped = _dedupe_jobs(ok, thumbs)
+            else:
+                print("[read-video] WARNING: thumbnail pass failed — dedup skipped", file=sys.stderr)
+        except Exception:
             print("[read-video] WARNING: thumbnail pass failed — dedup skipped", file=sys.stderr)
     ok = _cap_jobs(ok, n)
     return _jobs_to_entries(_reindex_jobs(ok)), deduped
