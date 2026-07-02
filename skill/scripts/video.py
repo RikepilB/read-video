@@ -365,6 +365,49 @@ def _extract_frames_filter(media: str, fdir: Path, n: int, start: float,
     return out
 
 
+# --------------------------------------------------------------------------- frame dedup
+# Ported from bradautomates/claude-video v0.2.0 (MIT). Near-duplicate frames (held slides,
+# static screens) waste the frame budget; a cheap perceptual pass drops them so the budget
+# goes to distinct content. Thumbnails come from one ffmpeg rawvideo pass — no Pillow.
+_DEDUP_THUMB = 16
+_DEDUP_THRESHOLD = 2.0
+
+
+def _frame_delta(a: bytes, b: bytes) -> float:
+    """Mean absolute per-pixel difference (0-255) between two grayscale thumbnails.
+    Mismatched lengths read as maximally different so a decode hiccup never collapses
+    distinct frames."""
+    if not a or len(a) != len(b):
+        return float("inf")
+    return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+
+
+def _dedupe_jobs(jobs: list[tuple[float, Path, bool]], thumbs: list[bytes],
+                 threshold: float = _DEDUP_THRESHOLD) -> tuple[list[tuple[float, Path, bool]], int]:
+    """Greedily drop frames within `threshold` of the last *kept* frame.
+
+    `jobs` is chronological `(t_seconds, path, pinned)`. Pinned jobs are never dropped.
+    Deletes dropped JPEGs. Fail-open: a thumbs/jobs length mismatch returns the input
+    unchanged so extraction never breaks because of dedup."""
+    if len(thumbs) != len(jobs) or len(jobs) <= 1:
+        return jobs, 0
+    kept = [jobs[0]]
+    last = thumbs[0]
+    dropped: list[tuple[float, Path, bool]] = []
+    for job, tb in zip(jobs[1:], thumbs[1:]):
+        if not job[2] and _frame_delta(tb, last) <= threshold:
+            dropped.append(job)
+        else:
+            kept.append(job)
+            last = tb
+    for _t, fp, _pin in dropped:
+        try:
+            fp.unlink()
+        except OSError:
+            pass
+    return kept, len(dropped)
+
+
 # --------------------------------------------------------------------------- transcription
 def _transcribe(orig: str, info: dict[str, Any], media: str | None,
                 wd: Path, backend: str) -> tuple[str, str]:
