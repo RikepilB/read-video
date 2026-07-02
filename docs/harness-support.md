@@ -41,7 +41,7 @@ bash scripts/install-skill.sh
 ```
 
 Both scripts copy `skill/` to both install roots and print a per-target `RESULT` line for the copy
-step and two verification checks (frontmatter parses, `video.py --help` runs), ending with a
+step and two verification checks (frontmatter parses, `video.py probe --help` runs), ending with a
 `SUMMARY` line. Exit code is non-zero only if **every** target's copy failed — a machine with only
 Claude Code installed still succeeds overall (the `~/.agents/skills/` copy just sits there ready
 for whichever of Codex/Gemini CLI/Copilot CLI gets installed later).
