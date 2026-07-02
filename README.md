@@ -95,6 +95,23 @@ First use downloads a model (default `small`, ≈ 484 MB). See [docs/backends](s
 Copy `skill/workspace.example.json` to `skill/workspace.json` (gitignored) and set `inbox_dir` / `out_dir`
 to your folders. With it, you can pass **bare filenames** and the skill auto-saves notes.
 
+### 5. (Optional) other agent harnesses
+`read-video` also works with Codex, Gemini CLI, and Copilot CLI — they share one install
+directory (`~/.agents/skills/`) with the identical `SKILL.md` format Claude Code uses, so no
+per-harness adapter is needed. Run the install script instead of the manual copy above to set up
+all of them at once:
+
+```powershell
+# Windows / PowerShell
+.\scripts\install-skill.ps1
+```
+```bash
+# macOS / Linux / Git Bash
+bash scripts/install-skill.sh
+```
+
+See [docs/harness-support.md](docs/harness-support.md) for details.
+
 ## Quickstart (driving the engine directly)
 
 ```bash
