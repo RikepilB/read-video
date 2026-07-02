@@ -27,6 +27,13 @@ we vendor hand-reviewed algorithm code only, and never port upstream's session h
 4. **Subprocess hardening** — `Path.resolve()` before ffmpeg/ffprobe argv (upstream issue #2).
 5. **Test suite** — pytest, no network, ffmpeg-synthesized fixtures. The fork currently has zero tests.
 
+## Constraints
+
+- **The zero-cost path is the default and must always remain fully functional**: URL captions and
+  local `faster-whisper` cover the free case end to end, with no API key present. Paid backends
+  (Groq / OpenAI / Gemini, via the user's env-var keys) remain strictly opt-in behind the
+  existing cost gate — nothing in this port may route audio to a paid API without the gate.
+
 ## Non-goals
 
 - **Scene-aware frame selection / `--detail` dial.** Upstream's `balanced` mode full-decodes the
