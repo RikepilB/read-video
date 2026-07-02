@@ -64,3 +64,25 @@ def test_audio_tier_includes_frames_deduped_key(static_clip, tmp_path, monkeypat
     assert "frames_deduped" in result
     assert result["frames_deduped"] == 0
     assert result["frames"] == []
+
+
+@requires_ffmpeg
+def test_extract_frames_fail_open_on_raised_exception(static_clip, tmp_path, monkeypatch, capsys):
+    """Dedup block exception (e.g. OSError from subprocess) is caught and logged, not propagated."""
+    # Force _thumb_frames to raise an exception (simulating OS-level ffmpeg failure)
+    def mock_thumb_frames(paths):
+        raise OSError("simulated subprocess/resource failure")
+
+    monkeypatch.setattr(video, "_thumb_frames", mock_thumb_frames)
+
+    # Extract frames with dedup enabled (default)
+    entries, deduped = video._extract_frames(str(static_clip), tmp_path, 10, 0.0, 8.0, 128, dedup=True)
+
+    # Should succeed (not propagate the exception)
+    assert len(entries) > 0
+    assert deduped == 0  # no dedup occurred
+    assert all(Path(e["file"]).exists() for e in entries)
+
+    # Should print the fail-open warning
+    captured = capsys.readouterr()
+    assert "WARNING: thumbnail pass failed — dedup skipped" in captured.err
