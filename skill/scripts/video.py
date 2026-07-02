@@ -282,7 +282,7 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
 
     result: dict[str, Any] = {"workdir": str(wd), "tier": tier,
                               "backend": backend if want_audio else "none",
-                              "frames": [], "transcript": None}
+                              "frames": [], "frames_deduped": 0, "transcript": None}
     if want_frames:
         result["frames"], result["frames_deduped"] = _extract_frames(
             media, wd, n, start, window,

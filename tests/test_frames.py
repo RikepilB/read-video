@@ -45,3 +45,22 @@ def test_cap_jobs_even_samples_and_keeps_pins(tmp_path):
     assert len(kept) == 4
     assert any(j[2] for j in kept)                # pin survived
     assert sum(1 for j in jobs if j[1].exists()) == 4  # culled files deleted
+
+
+def test_audio_tier_includes_frames_deduped_key(static_clip, tmp_path, monkeypatch):
+    """Verify that run() output always includes frames_deduped key, even on audio-only tier."""
+    # Monkeypatch _transcribe to return a stub result without network access
+    def mock_transcribe(inp, info, media, wd, backend):
+        # Create a dummy transcript file
+        tpath = wd / "transcript.txt"
+        tpath.write_text("dummy transcript", encoding="utf-8")
+        return str(tpath), "dummy transcript"
+
+    monkeypatch.setattr(video, "_transcribe", mock_transcribe)
+
+    result = video.run(str(static_clip), tier="audio", workdir=str(tmp_path))
+
+    # Assert frames_deduped is present and set to 0 (no frame extraction on audio tier)
+    assert "frames_deduped" in result
+    assert result["frames_deduped"] == 0
+    assert result["frames"] == []
