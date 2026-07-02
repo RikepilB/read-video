@@ -241,7 +241,7 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     drivers = {"frames": frames_tokens, "transcript": transcript_tokens, "output": output_tokens}
     needs_install = want_audio and primary in ("trx", "faster-whisper", "local") \
         and not _have_local_backend(primary) and not info.get("sidecar_transcript")
-    return {
+    out = {
         "input": inp, "source": info["source"], "duration_s": dur, "tier": tier,
         "backend": backend if want_audio else "none",
         "frames": n if want_frames else 0, "per_frame_tokens": pft,
@@ -253,6 +253,10 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
         "sidecar_transcript": info.get("sidecar_transcript"),
         "captions_available": info.get("captions_available"),
     }
+    if want_frames:
+        # The gate prices the full budget (worst case); dedup can only shrink the real count.
+        out["note"] = "frame dedup may reduce actual frames below this count"
+    return out
 
 
 # --------------------------------------------------------------------------- run
