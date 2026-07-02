@@ -382,6 +382,32 @@ def _frame_delta(a: bytes, b: bytes) -> float:
     return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
 
 
+def _thumb_frames(paths: list[Path]) -> list[bytes]:
+    """Decode every frame in `paths` to a small grayscale thumbnail via ONE ffmpeg pass
+    over the JPEG sequence (keeps us pure-stdlib — no Pillow). `paths` must be a
+    contiguously numbered sequence (frame_0001.jpg, frame_0002.jpg, ...). Fail-open:
+    any ffmpeg error, unparseable name, or byte-count mismatch returns [] so the caller
+    skips dedup rather than breaking extraction."""
+    if not paths:
+        return []
+    m = re.match(r"(.*?)(\d+)(\.[A-Za-z0-9]+)$", paths[0].name)
+    if m is None:
+        return []
+    prefix, digits, ext = m.groups()
+    pattern = str(paths[0].parent / f"{prefix}%0{len(digits)}d{ext}")
+    cp = subprocess.run(                       # bytes out, so not run_cmd (which is text=True)
+        ["ffmpeg", "-hide_banner", "-loglevel", "error",
+         "-start_number", str(int(digits)), "-i", pattern,
+         "-vf", f"scale={_DEDUP_THUMB}:{_DEDUP_THUMB},format=gray",
+         "-f", "rawvideo", "-"],
+        capture_output=True)
+    size = _DEDUP_THUMB * _DEDUP_THUMB
+    raw = cp.stdout
+    if cp.returncode != 0 or len(raw) != size * len(paths):
+        return []
+    return [raw[i * size:(i + 1) * size] for i in range(len(paths))]
+
+
 def _dedupe_jobs(jobs: list[tuple[float, Path, bool]], thumbs: list[bytes],
                  threshold: float = _DEDUP_THRESHOLD) -> tuple[list[tuple[float, Path, bool]], int]:
     """Greedily drop frames within `threshold` of the last *kept* frame.
