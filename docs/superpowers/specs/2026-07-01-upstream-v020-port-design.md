@@ -79,7 +79,7 @@ Development happens in the repo; `skill/` is copied to the live install
 
 ### 2. Whisper API auto-chunking
 
-Applies to paid API backends only (`groq`, `openai`, `openai-mini`, `gemini`); local
+Applies to the OpenAI-compatible paid backends only (`groq`, `openai`, `openai-mini`, `openrouter`); Gemini's Files API has no 25 MB cap so it stays unchunked, and local
 `faster-whisper`/`trx` read media directly and never chunk.
 
 - After the existing mono 64 kbps mp3 encode, if the file exceeds the 25 MB upload cap:

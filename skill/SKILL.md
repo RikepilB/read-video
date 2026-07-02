@@ -93,7 +93,16 @@ focused `--start/--end` window (for "what happens at 5:00", extract only around 
 ### 4. Run
 On approval: `python scripts/video.py run <input> --tier <t> --backend <b> [--frames N] [--start S --end E]`.
 It writes a workdir containing `frames/frame_XXXX.jpg`, `transcript.txt`, and `manifest.json`
-(the manifest maps every frame to its `[MM:SS]` timestamp). The transcript backend cascades:
+(the manifest maps every frame to its `[MM:SS]` timestamp).
+
+Two extra `run` controls: `--timestamps 90,05:30` pins exact-moment frames (reserved against
+the budget, never dropped by dedup — the manifest marks them `"pinned": true`), and
+`--no-dedup` keeps every sampled frame. By default extraction oversamples ~2x the budget and
+drops perceptual near-duplicates (held slides, static screens), so `frames` in the run JSON
+may come back smaller than the budget with the difference in `frames_deduped` — that is the
+budget being spent on distinct content, not an error.
+
+The transcript backend cascades:
 
 **sidecar (free) → URL captions (free) → local `faster-whisper`/`trx` (free, CPU) → Groq (cheapest API) → OpenAI-mini → OpenAI → OpenRouter / Gemini.**
 
@@ -128,5 +137,5 @@ again.
 - **Frames are the dominant cost.** The frame budget auto-scales with duration (≤30s→30, ≤3min→60, ≤10min→80, >10min→100, hard caps 2 fps / 100 frames). Lower `--frames` or window with `--start/--end` to cut cost.
 - **Speed**: extraction grabs each frame with an independent fast input seek (parallel), not a full-stream decode — so wall-clock scales with frame *count*, not video length or fps (a 9-min 60 fps clip extracts in seconds). Local `faster-whisper` runs with VAD (silence-skipping) and is fed the media directly (no intermediate mp3), so silent/sparse audio finishes fast. If a run still feels slow, it's the model: a smaller `whisper_model`, or `--tier visual` when there's no speech, is the lever.
 - **Token rates** for the agent-cost estimate live in `pricing.json` (`model_per_mtok._active`). If the user runs a different model, update `_active` so the estimate stays honest.
-- **Long audio + paid APIs**: for the **API** backends only, audio is re-encoded to mono 64 kbps mp3 (~0.5 MB/min) so up to ~50 min fits the providers' ~25 MB upload cap; beyond that, prefer captions or a local backend, or window with `--start/--end` (chunking is not implemented in v1). Local `faster-whisper`/`trx` skip that step and read the media directly. API calls use no SDK (pure stdlib `urllib`) and retry on 429 / transient network errors. Keys are read **only** from environment variables — the skill never scans `.env` files.
+- **Long audio + paid APIs**: for the **API** backends only, audio is re-encoded to mono 64 kbps mp3 (~0.5 MB/min) so up to ~50 min fits the providers' ~25 MB upload cap; beyond that the engine now auto-chunks: the mp3 is split into even segments under the cap, each transcribed separately (timestamps shifted back into source time); a failed chunk leaves a `[transcription gap: ...]` marker instead of failing the run. Local `faster-whisper`/`trx` skip that step and read the media directly. API calls use no SDK (pure stdlib `urllib`) and retry on 429 / transient network errors. Keys are read **only** from environment variables — the skill never scans `.env` files.
 - Prior art reused: `bradautomates/claude-video` (MIT, frame/caption logic), `crafter-station/trx` (MIT, local transcription).

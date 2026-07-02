@@ -67,9 +67,13 @@ python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper
   "free": true,                       // no out-of-pocket $ (agent tokens may still apply)
   "needs_install": false,             // chosen local backend isn't installed yet
   "sidecar_transcript": null,
-  "captions_available": false
+  "captions_available": false,
+  "note": "frame dedup may reduce actual frames below this count"
 }
 ```
+
+`note` is only present when the tier prices frames (`visual`/`both`): the gate prices the full frame
+budget as a worst case, and `run`'s dedup can only shrink the real count from there.
 
 `--human` renders the same data as:
 ```
@@ -102,6 +106,8 @@ python scripts/video.py run "clip.mp4" --tier audio --backend groq --start 60 --
 | `--frames` | adaptive | override frame count |
 | `--start` / `--end` | `0` / full | analyze only a time window (seconds) |
 | `--workdir` | temp dir | where to write outputs (frames, transcript, manifest) |
+| `--timestamps` | none | comma-separated pins (`SS`/`MM:SS`/`HH:MM:SS`, e.g. `90,05:30`) reserved against the frame budget and never dropped by dedup |
+| `--no-dedup` | off | keep every sampled frame instead of dropping perceptual near-duplicates |
 | `--human` | off | (run always emits JSON; flag is accepted for symmetry) |
 
 **Output** (also written to `<workdir>/manifest.json`):
@@ -114,12 +120,16 @@ python scripts/video.py run "clip.mp4" --tier audio --backend groq --start 60 --
     { "file": ".../frames/frame_0001.jpg", "t": "00:01" },
     { "file": ".../frames/frame_0002.jpg", "t": "00:03" }
   ],
+  "frames_deduped": 4,
   "transcript": ".../transcript.txt",
   "transcript_chars": 254
 }
 ```
 
-Each frame carries the `[MM:SS]` timestamp of its window midpoint, so Claude can cite moments precisely. The
+Each frame carries the `[MM:SS]` timestamp of its window midpoint, so Claude can cite moments precisely. A
+pinned frame (from `--timestamps`) additionally carries `"pinned": true`. By default extraction oversamples
+~2x the frame budget and drops perceptual near-duplicates, so `frames` may come back smaller than the
+budget — `frames_deduped` is the count of frames dropped that way. Pass `--no-dedup` to disable it. The
 agent then `Read`s the listed JPGs and the transcript file and writes the answer.
 
 > `faster-whisper` prints which model it actually used to **stderr** (`[read-video] faster-whisper model: small`,
