@@ -772,11 +772,12 @@ def _err_body(ex: urllib.error.HTTPError) -> str:
         return ""
 
 
-def _resp_to_text(data: dict[str, Any]) -> str:
+def _resp_to_text(data: dict[str, Any], offset: float = 0.0) -> str:
     segs = data.get("segments")
     if segs:
-        return "\n".join(f"[{_ts(float(s.get('start') or 0.0))}] {(s.get('text') or '').strip()}"
-                         for s in segs if (s.get("text") or "").strip())
+        return "\n".join(
+            f"[{_ts(float(s.get('start') or 0.0) + offset)}] {(s.get('text') or '').strip()}"
+            for s in segs if (s.get("text") or "").strip())
     return (data.get("text") or "").strip()
 
 
@@ -822,9 +823,10 @@ def _split_audio(audio: str, max_bytes: int = _API_UPLOAD_CAP) -> list[tuple[str
     return out
 
 
-def _api_transcribe(backend: str, audio: str) -> str:
-    """POST the audio to an OpenAI-compatible /audio/transcriptions endpoint via stdlib urllib.
-    Retries on 429 / transient network errors with exponential backoff."""
+def _api_request(backend: str, audio: str) -> dict[str, Any]:
+    """POST one audio file to an OpenAI-compatible /audio/transcriptions endpoint via stdlib
+    urllib and return the parsed JSON. Retries on 429 / transient network errors with
+    exponential backoff."""
     key_env, endpoint, model, verbose = BACKEND_API[backend]
     key = os.environ.get(key_env)
     if not key:
@@ -842,7 +844,7 @@ def _api_transcribe(backend: str, audio: str) -> str:
         try:
             req = Request(endpoint, data=body, headers=headers, method="POST")
             with urlopen(req, timeout=300, context=ctx) as resp:
-                return _resp_to_text(json.loads(resp.read().decode("utf-8", errors="replace")))
+                return json.loads(resp.read().decode("utf-8", errors="replace"))
         except urllib.error.HTTPError as ex:
             last = f"HTTP {ex.code}{_err_body(ex)}"
             if 400 <= ex.code < 500 and ex.code != 429:      # client error — retry won't help
@@ -860,6 +862,28 @@ def _api_transcribe(backend: str, audio: str) -> str:
                   f"({attempt + 2}/{_MAX_ATTEMPTS})", file=sys.stderr)
             time.sleep(delay)
     raise RuntimeError(f"{backend} transcription failed after {_MAX_ATTEMPTS} attempts: {last}")
+
+
+def _api_transcribe(backend: str, audio: str) -> str:
+    """Transcribe via a paid API, auto-chunking audio over the upload cap. Ported from
+    claude-video v0.2.0: a failed chunk becomes a gap marker instead of killing the run;
+    the whole call fails only when every chunk does (so a backend chain still falls
+    through). Timestamps are shifted back into source time per chunk."""
+    chunks = _split_audio(audio)
+    if len(chunks) == 1:
+        return _resp_to_text(_api_request(backend, audio))
+    parts: list[str] = []
+    failures = 0
+    for i, (path, offset) in enumerate(chunks, start=1):
+        try:
+            parts.append(_resp_to_text(_api_request(backend, path), offset))
+        except Exception as ex:
+            failures += 1
+            parts.append(f"[transcription gap: chunk {i} of {len(chunks)} failed: {str(ex)[:120]}]")
+            print(f"[read-video] {backend} chunk {i}/{len(chunks)} failed: {ex}", file=sys.stderr)
+    if failures == len(chunks):
+        raise RuntimeError(f"{backend} transcription failed: all {len(chunks)} chunks failed")
+    return "\n".join(parts)
 
 
 def _gemini(wav: str) -> str:
