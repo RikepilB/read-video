@@ -117,6 +117,7 @@ def _have(module: str) -> bool:
 
 # --------------------------------------------------------------------------- probe
 def ffprobe_local(path: str) -> dict[str, Any]:
+    path = str(Path(path).resolve())      # a relative name starting with '-' must not read as a flag
     cp = run_cmd(["ffprobe", "-v", "quiet", "-print_format", "json",
                   "-show_format", "-show_streams", path])
     if cp.returncode != 0:
@@ -276,7 +277,7 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
     need_media = want_frames or (want_audio and backend != "captions"
                                  and not info.get("sidecar_transcript"))
     if need_media:
-        media = _download(inp, wd) if info["source"] == "url" else inp
+        media = _download(inp, wd) if info["source"] == "url" else str(Path(inp).resolve())
 
     result: dict[str, Any] = {"workdir": str(wd), "tier": tier,
                               "backend": backend if want_audio else "none",
@@ -476,6 +477,7 @@ def _cues_to_text(raw: str) -> str:
 def _to_audio(src: str, wd: Path) -> str:
     """Mono 16kHz 64kbps mp3 — ~0.5 MB/min, so ~50 min fits the providers' ~25 MB upload cap.
     (wav would be ~1.9 MB/min and blow the cap after ~13 min.)"""
+    src = str(Path(src).resolve())
     out = str(wd / "audio.mp3")
     if Path(out).exists() and Path(out).stat().st_size > 0:
         return out                                    # reuse within a run (e.g. across a backend chain)
