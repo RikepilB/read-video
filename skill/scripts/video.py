@@ -115,6 +115,19 @@ def _have(module: str) -> bool:
     return importlib.util.find_spec(module) is not None
 
 
+def _ytdlp_cookie_args() -> list[str]:
+    """Optional auth for platforms (e.g. Instagram) that refuse anonymous fetches.
+
+    Points at a Netscape-format cookies.txt exported by the user themselves (e.g. a browser
+    extension) — never extracted by this script. Path comes only from an env var, matching the
+    rest of the skill's "no credentials read from files it scans itself" stance.
+    """
+    path = os.environ.get("READ_VIDEO_YTDLP_COOKIES")
+    if path and Path(path).exists():
+        return ["--cookies", path]
+    return []
+
+
 # --------------------------------------------------------------------------- probe
 def ffprobe_local(path: str) -> dict[str, Any]:
     path = str(Path(path).resolve())      # a relative name starting with '-' must not read as a flag
@@ -150,7 +163,7 @@ def find_sidecar(path: str) -> str | None:
 
 
 def ytdlp_meta(url: str) -> dict[str, Any]:
-    cp = run_cmd(["yt-dlp", "--no-warnings", "--skip-download", "-J", url])
+    cp = run_cmd(["yt-dlp", "--no-warnings", "--skip-download", "-J", *_ytdlp_cookie_args(), url])
     if cp.returncode != 0:
         raise RuntimeError(f"yt-dlp metadata failed: {cp.stderr.strip()[:200]}")
     info = json.loads(cp.stdout)
@@ -322,7 +335,8 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
 def _download(url: str, wd: Path) -> str:
     out = str(wd / "source.%(ext)s")
     cp = run_cmd(["yt-dlp", "-f", "bv*[height<=720]+ba/b[height<=720]/b",
-                  "--concurrent-fragments", "8", "-o", out, "--no-warnings", url])
+                  "--concurrent-fragments", "8", "-o", out, "--no-warnings",
+                  *_ytdlp_cookie_args(), url])
     if cp.returncode != 0:
         raise RuntimeError(f"yt-dlp download failed: {cp.stderr.strip()[:200]}")
     files = sorted(wd.glob("source.*"))
@@ -586,7 +600,7 @@ def _fetch_captions(url: str, wd: Path) -> str | None:
     out = str(wd / "caps")
     run_cmd(["yt-dlp", "--skip-download", "--write-subs", "--write-auto-subs",
              "--sub-format", "vtt", "--sub-langs", "en.*,en",
-             "-o", out, "--no-warnings", url])
+             "-o", out, "--no-warnings", *_ytdlp_cookie_args(), url])
     vtts = sorted(wd.glob("caps*.vtt"))
     if not vtts:
         return None

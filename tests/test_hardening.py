@@ -60,3 +60,41 @@ def test_to_audio_resolves_src(monkeypatch, tmp_path):
     src_arg = seen["args"][i + 1]
     assert Path(src_arg).is_absolute()
     assert not src_arg.startswith("-")
+
+
+def test_ytdlp_cookie_args_absent_by_default(monkeypatch):
+    monkeypatch.delenv("READ_VIDEO_YTDLP_COOKIES", raising=False)
+    assert video._ytdlp_cookie_args() == []
+
+
+def test_ytdlp_cookie_args_missing_file_ignored(monkeypatch, tmp_path):
+    monkeypatch.setenv("READ_VIDEO_YTDLP_COOKIES", str(tmp_path / "nope.txt"))
+    assert video._ytdlp_cookie_args() == []
+
+
+def test_ytdlp_cookie_args_present_when_file_exists(monkeypatch, tmp_path):
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    monkeypatch.setenv("READ_VIDEO_YTDLP_COOKIES", str(cookies))
+    assert video._ytdlp_cookie_args() == ["--cookies", str(cookies)]
+
+
+def test_ytdlp_meta_passes_cookie_args(monkeypatch, tmp_path):
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    monkeypatch.setenv("READ_VIDEO_YTDLP_COOKIES", str(cookies))
+    seen = {}
+
+    def fake_run_cmd(args):
+        seen["args"] = args
+
+        class CP:
+            returncode = 0
+            stdout = json.dumps({"duration": 1.0})
+            stderr = ""
+        return CP()
+
+    monkeypatch.setattr(video, "run_cmd", fake_run_cmd)
+    video.ytdlp_meta("https://www.instagram.com/reel/abc123/")
+    assert "--cookies" in seen["args"]
+    assert str(cookies) in seen["args"]

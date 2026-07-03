@@ -20,6 +20,7 @@ samples/*
 .env.*
 *.key
 *.pem
+cookies*.txt
 
 # --- Python ---
 __pycache__/
