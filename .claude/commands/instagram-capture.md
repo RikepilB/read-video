@@ -27,10 +27,15 @@ user that they're watching** — this drives real clicks (navigate, unsave) agai
 Instagram account. Skip this confirmation for `--dry-run` invocations (read-only, nothing to
 watch for).
 
-When the subagent returns, report its result plainly:
+When the subagent returns, first check for `aborted: true` — this can happen during a dry run just
+as easily as a live run (the abort triggers in step 1/3/5 of the subagent's algorithm are all
+independent of `dry_run`). If aborted, report it as an incomplete run regardless of mode: "Stopped
+early after <count> reel(s) — <reason>" plus whatever partial `captured` list came back — never
+report a partial, aborted list as if it were the full requested N.
+
+If not aborted, report the result plainly:
 - Dry run: "Would capture N reels: <list of URLs>" (nothing was written or unsaved).
-- Live run: "Captured N reels into <urls_md_path>: <list of URLs>" plus, if the subagent reported
-  `aborted: true`, surface its `reason` verbatim rather than treating the run as fully successful.
+- Live run: "Captured N reels into <urls_md_path>: <list of URLs>".
 
 Do not trigger `read-video` processing automatically — that is a separate, future step the user
 runs themselves.
