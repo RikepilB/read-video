@@ -8,7 +8,9 @@
 
 The user's daily workflow: browse Instagram, save reels/posts relevant to job hunting, AI/agent
 tooling, programming fundamentals, system design, security, and project lifecycle into a saved
-collection named **"courses"**. The long-term goal (this thread's larger vision, decomposed across
+collection named **"Cursos"** (Spanish for "Cursos" — confirmed as the collection's real name
+during Task 4's live verification; earlier design conversation used the English gloss). The
+long-term goal (this thread's larger vision, decomposed across
 future sub-projects) is to transcribe and analyze each saved reel via the existing `read-video`
 skill, produce a report per video, and eventually build a searchable knowledge library ("second
 brain"). That downstream analysis/report/indexing work is explicitly **out of scope here** — this
@@ -22,10 +24,10 @@ sub-project's only job is to populate `urls.md` — everything downstream is unm
 ## Goals
 
 1. **Automated capture** — an orchestrator command (e.g. `/instagram-capture [N=10]`) drives a
-   scoped browser-automation subagent that reads up to N reel URLs from the "courses" collection
+   scoped browser-automation subagent that reads up to N reel URLs from the "Cursos" collection
    and appends them to `read-video`'s existing `inbox_dir/urls.md`.
 2. **Self-dedupe via unsave** — once a reel's URL is confirmed written to `urls.md`, the subagent
-   unsaves it from the collection. A reel no longer in "courses" was already captured; this needs
+   unsaves it from the collection. A reel no longer in "Cursos" was already captured; this needs
    no separate dedup state file.
 3. **Safe by default** — a dry-run mode that lists candidate URLs without writing or unsaving
    anything, so selectors can be validated before any live state-changing run.
@@ -35,7 +37,7 @@ sub-project's only job is to populate `urls.md` — everything downstream is unm
 
 ## Constraints
 
-- **Public accounts/content only** — the "courses" collection contains only saves from public
+- **Public accounts/content only** — the "Cursos" collection contains only saves from public
   accounts (user-confirmed); no private-content access is in scope.
 - **Append-before-unsave, always** — a reel must never be unsaved unless its URL write to
   `urls.md` is confirmed first. Losing a saved reel without capturing its URL is the one truly
@@ -55,7 +57,7 @@ sub-project's only job is to populate `urls.md` — everything downstream is unm
 
 - **Transcription, analysis, report generation, or indexing** of captured reels — sub-project #2+,
   designed separately later.
-- **Private accounts or non-"courses" collections** — out of scope; may become a future parameter
+- **Private accounts or non-"Cursos" collections** — out of scope; may become a future parameter
   if the user wants it, not assumed here.
 - **Multi-harness support** — this is a Claude-Code-only automation, unlike `read-video`'s core.
 - **Automatic scheduling/cron** — the user invokes the orchestrator command manually ("periodically
@@ -69,7 +71,7 @@ sub-project's only job is to populate `urls.md` — everything downstream is unm
 Two phases exist in the user's full vision; **only phase 1 is this spec**:
 
 ```
-Phase 1 (this spec):  IG "courses" collection ──► urls.md               [capture]
+Phase 1 (this spec):  IG "Cursos" collection ──► urls.md               [capture]
 Phase 2 (future):     urls.md ──► read-video (unmodified) ──► reports   [analyze]
 ```
 
@@ -81,7 +83,7 @@ Phase 1 itself has two components:
         ▼
 Capture subagent (scoped: Chrome navigate/read/click only)
         │
-        ├─► read next reel from "courses" grid
+        ├─► read next reel from "Cursos" grid
         ├─► extract shortcode → build full reel URL
         ├─► append URL to inbox_dir/urls.md
         ├─► confirm the line landed (re-read file)
@@ -109,10 +111,12 @@ Scoped tools only: Chrome navigation, page read, click (the `claude-in-chrome` M
 filesystem/Bash access beyond what's needed to append to `urls.md`. Single loop, one item at a
 time:
 
-1. Navigate to (or confirm already on) the "courses" saved-collection grid.
+1. Navigate to (or confirm already on) the "Cursos" saved-collection grid.
 2. Read the grid, identify the next not-yet-processed reel tile.
 3. Extract the reel's shortcode from its link/URL; build the canonical `instagram.com/reel/<shortcode>/`
-   URL.
+   URL. (Confirmed during Task 4: the collection grid's own links use `/p/<shortcode>/` even for
+   Reels content — expected Instagram behavior, not a bug. The helper accepts `/p/`, `/reel/`, and
+   `/tv/` paths and always canonicalizes to `/reel/`.)
 4. **Dupe guard**: if this URL is already present in `urls.md`, skip the append (don't double-add
    the line) but still attempt the unsave — this is exactly the recovery path for a prior run
    where the append succeeded but the unsave failed, and it's how such reels eventually drain
@@ -129,7 +133,7 @@ real state changes.
 ## Data flow
 
 ```
-"courses" grid ──scroll/read──► candidate tile
+"Cursos" grid ──scroll/read──► candidate tile
                                       │
                               extract shortcode
                                       │
@@ -175,7 +179,7 @@ sub-project wires that hand-off explicitly.
 
 ## Testing
 
-- **Dry-run first**: run in list-only mode against the real "courses" collection, verify the
+- **Dry-run first**: run in list-only mode against the real "Cursos" collection, verify the
   extracted URLs and shortcodes look correct, with zero writes/unsaves performed.
 - **First live run watched manually**: the user observes the first real (non-dry-run) invocation
   end-to-end to confirm append-then-unsave ordering behaves as designed and no unintended clicks

@@ -180,7 +180,7 @@ read-video/
 
 ## Instagram capture (optional)
 
-If you save job-hunting/AI/programming reels into an Instagram collection named **"courses"**, the
+If you save job-hunting/AI/programming reels into an Instagram collection named **"Cursos"**, the
 `/instagram-capture [N] [--dry-run]` Claude Code command (this repo's `.claude/commands/` +
 `.claude/agents/`) can pull up to N of their URLs straight into `read-video`'s `inbox_dir/urls.md`
 queue — a scoped subagent drives the browsing via `claude-in-chrome`, unsaving each reel only after
