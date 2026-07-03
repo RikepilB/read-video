@@ -28,8 +28,9 @@ Instagram account. Skip this confirmation for `--dry-run` invocations (read-only
 watch for).
 
 When the subagent returns, first check for `aborted: true` — this can happen during a dry run just
-as easily as a live run (the abort triggers in step 1/3/5 of the subagent's algorithm are all
-independent of `dry_run`). If aborted, report it as an incomplete run regardless of mode: "Stopped
+as easily as a live run (the subagent's step 1 and step 3 abort triggers fire regardless of
+`dry_run`; only step 5's trigger is live-run-only). If aborted, report it as an incomplete run
+regardless of mode: "Stopped
 early after <count> reel(s) — <reason>" plus whatever partial `captured` list came back — never
 report a partial, aborted list as if it were the full requested N.
 
