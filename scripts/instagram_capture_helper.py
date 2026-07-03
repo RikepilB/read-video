@@ -9,7 +9,7 @@ import re
 import sys
 from pathlib import Path
 
-_URL_RE = re.compile(r"instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)")
+_URL_RE = re.compile(r"(?<![A-Za-z0-9])(?:www\.)?instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)")
 _SHORTCODE_RE = re.compile(r"^[A-Za-z0-9_-]{5,15}$")
 
 

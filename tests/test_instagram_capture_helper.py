@@ -40,6 +40,16 @@ def test_extract_shortcode_invalid_raises():
         extract_shortcode("https://example.com/not-instagram")
 
 
+def test_extract_shortcode_rejects_lookalike_domain_prefix():
+    with pytest.raises(ValueError):
+        extract_shortcode("https://notinstagram.com/reel/Cx1AbC2DeFg/")
+
+
+def test_extract_shortcode_rejects_lookalike_domain_no_separator():
+    with pytest.raises(ValueError):
+        extract_shortcode("https://xxxinstagram.com/reel/Cx1AbC2DeFg/")
+
+
 def test_canonical_url_format():
     assert canonical_url("Cx1AbC2DeFg") == "https://www.instagram.com/reel/Cx1AbC2DeFg/"
 
