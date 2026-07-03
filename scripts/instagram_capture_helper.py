@@ -8,18 +8,22 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
-_URL_RE = re.compile(r"(?<![A-Za-z0-9])(?:www\.)?instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)")
+_ALLOWED_HOSTS = {"instagram.com", "www.instagram.com"}
+_PATH_RE = re.compile(r"^/(?:reel|p|tv)/([A-Za-z0-9_-]+)")
 _SHORTCODE_RE = re.compile(r"^[A-Za-z0-9_-]{5,15}$")
 
 
 def extract_shortcode(url_or_code: str) -> str:
     s = url_or_code.strip()
-    m = _URL_RE.search(s)
-    if m:
-        return m.group(1)
     if _SHORTCODE_RE.match(s):
         return s
+    parsed = urlparse(s)
+    if parsed.hostname and parsed.hostname.lower() in _ALLOWED_HOSTS:
+        m = _PATH_RE.match(parsed.path)
+        if m:
+            return m.group(1)
     raise ValueError(f"not a recognizable Instagram reel/post URL or shortcode: {url_or_code!r}")
 
 

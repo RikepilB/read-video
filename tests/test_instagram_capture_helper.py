@@ -40,14 +40,29 @@ def test_extract_shortcode_invalid_raises():
         extract_shortcode("https://example.com/not-instagram")
 
 
-def test_extract_shortcode_rejects_lookalike_domain_prefix():
-    with pytest.raises(ValueError):
-        extract_shortcode("https://notinstagram.com/reel/Cx1AbC2DeFg/")
-
-
 def test_extract_shortcode_rejects_lookalike_domain_no_separator():
     with pytest.raises(ValueError):
+        extract_shortcode("https://notinstagram.com/reel/Cx1AbC2DeFg/")
+    with pytest.raises(ValueError):
         extract_shortcode("https://xxxinstagram.com/reel/Cx1AbC2DeFg/")
+
+
+def test_extract_shortcode_rejects_lookalike_domain_with_hyphen_or_underscore():
+    with pytest.raises(ValueError):
+        extract_shortcode("https://fake-instagram.com/reel/Cx1AbC2DeFg/")
+    with pytest.raises(ValueError):
+        extract_shortcode("https://fake_instagram.com/reel/Cx1AbC2DeFg/")
+    with pytest.raises(ValueError):
+        extract_shortcode("https://verify-instagram.com/reel/Cx1AbC2DeFg/")
+
+
+def test_extract_shortcode_rejects_userinfo_host_spoofing():
+    with pytest.raises(ValueError):
+        extract_shortcode("https://instagram.com@evil.com/reel/Cx1AbC2DeFg/")
+
+
+def test_extract_shortcode_from_reel_url_without_www():
+    assert extract_shortcode("https://instagram.com/reel/Cx1AbC2DeFg/") == "Cx1AbC2DeFg"
 
 
 def test_canonical_url_format():
