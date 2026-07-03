@@ -176,6 +176,18 @@ read-video/
 └── samples/                   ← drop your own clips here (gitignored)
 ```
 
+## Instagram capture (optional)
+
+If you save job-hunting/AI/programming reels into an Instagram collection named **"courses"**, the
+`/instagram-capture [N] [--dry-run]` Claude Code command (this repo's `.claude/commands/` +
+`.claude/agents/`) can pull up to N of their URLs straight into `read-video`'s `inbox_dir/urls.md`
+queue — a scoped subagent drives the browsing via `claude-in-chrome`, unsaving each reel only after
+its URL is confirmed captured. Claude-Code-only (depends on the `claude-in-chrome` MCP tools); it
+does not extend to the other harnesses `read-video` itself supports. Always dry-run first
+(`--dry-run` — lists candidates, writes/unsaves nothing) before a live run, and watch the first
+live run end-to-end. It never triggers `read-video` processing itself — run `probe`/`estimate`/`run`
+against the populated queue separately, exactly as documented above.
+
 ## Contributing
 
 Issues and PRs welcome — this is meant to improve over time. Good first areas: more backends, smarter
