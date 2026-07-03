@@ -8,6 +8,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "skill" / "scripts"))
+sys.path.insert(0, str(REPO / "scripts"))
 
 HAVE_FFMPEG = shutil.which("ffmpeg") is not None
 requires_ffmpeg = pytest.mark.skipif(not HAVE_FFMPEG, reason="ffmpeg not on PATH")
