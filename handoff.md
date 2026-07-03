@@ -1,28 +1,73 @@
 # Goal
-Thread A (active, near done): port upstream `bradautomates/claude-video` v0.2.0 into our `read-video` fork — frame dedup, Whisper API auto-chunking, `--timestamps`, argv hardening, pytest suite — per approved spec (`docs/superpowers/specs/2026-07-01-upstream-v020-port-design.md`) and 10-task plan (`docs/superpowers/plans/2026-07-01-upstream-v020-port.md`). Zero-cost path stays default; paid backends opt-in behind cost gate. Parked: thread C (agent-harness packaging), thread D (Instagram capture — design awaiting user go/no-go), thread B (media types).
+Wrap up and ship. Threads A/C/D/E all complete and merged to `main`. Thread F (transcription
+thoroughness tiers) designed and approved but explicitly parked, not implemented.
 
 ## Current state
-**Subagent-driven development, branch `upstream-v020-port`.** Authoritative ledger: `.superpowers/sdd/progress.md`. **Tasks 1-9 of 10 complete and reviewed clean** (commits 2e8518c, 2a83559, 5100e89, 9149f65, 9149f65..67070c7 (incl. fix), 17068d2, 6785532, 119f870, 3b50c3d). All runtime code for the port is DONE: dedup (3-5), pins (1,6), hardening (2), chunking (7-8), estimate note (9). **Task 10 (docs + spec fix + full-suite re-run + live-install sync — the FINAL task) is dispatched and running** (sonnet, agent aa1cdc334bb5f28ba, BASE=3b50c3d). It updates `skill/SKILL.md`, `docs/cli-reference.md`, `CREDITS.md`, fixes a spec inaccuracy (Gemini wrongly listed as chunking backend — Files API has no 25MB cap), re-runs `pytest -v` expecting all-pass, then copies `skill/scripts/video.py` + `skill/SKILL.md` to the live install `~/.claude/skills/read-video/` (must NOT touch `.env`/`workspace.json`/`load-env.ps1` there), then commits.
+**All work merged to `main` and pushed to `origin/main`** (`46504b1..9dc030b`). Feature branch
+`instagram-capture-pipeline` deleted (fast-forward merge, no divergence, no conflicts). 79/79
+tests passing on `main` post-merge.
 
-After Task 10 lands + reviewed: final whole-branch review (most capable model, `review-package $(git merge-base main HEAD) HEAD`, hand it all 9 tasks' ledgered Minor findings for triage — see ledger for full list, ~15 minors, all low-severity/brief-inherited), then `superpowers:finishing-a-development-branch` (merge decision is user's).
+- **Thread A** (upstream v0.2.0 port) — done, merged earlier session.
+- **Thread C** (agent-harness packaging) — done, merged earlier session.
+- **Thread D** (Instagram capture pipeline) — done. Task 5 (live run) satisfied: real 45-URL
+  capture run happened (user directly resumed a dry-run agent live), fetch-feasibility gate found
+  and fixed (`READ_VIDEO_YTDLP_COOKIES` cookie auth, commit `c23912a`), user confirmed this
+  satisfies Task 5 despite not matching the original controller-watched-run design.
+- **Thread E** (IG capture → analysis pipeline, "Phase 2") — done. 45 reels processed into
+  `_ig-index.md` + `ig-<code>.md` notes in the vault (outside repo). Retro spec now written:
+  `docs/superpowers/specs/2026-07-03-ig-capture-analysis-pipeline-design.md`. Explicitly documents
+  that this phase has **no reusable code/tests in this repo** — it was controller-orchestrated
+  subagent work against the vault, not a shipped command like `/instagram-capture`.
+- **Thread F** (transcription thoroughness tiers) — design approved (duration-routed fast ≤45s /
+  thorough >45s profiles in `_faster_whisper()`), spec written and committed:
+  `docs/superpowers/specs/2026-07-03-transcription-thoroughness-tiers-design.md`. **Not
+  implemented** — parked by explicit user choice to ship the rest now. Next person to pick this up
+  starts at `writing-plans` against that spec, not brainstorming again.
 
-SDD flow per task: `task-brief PLAN_FILE N` → implementer → `review-package BASE HEAD` (BASE = commit before dispatch, never HEAD~1) → reviewer (sonnet) → fixes if Critical/Important → ledger line. Scripts: `C:\Users\a2021\.claude\plugins\cache\claude-plugins-official\superpowers\6.0.3\skills\subagent-driven-development\scripts\`.
+**Repo hygiene done as part of this wrap-up:**
+- `.gitignore` now excludes session-transcript exports and `task-*-brief/report.md` SDD scratch
+  files (files stay on disk, just untracked — nothing was deleted that wasn't explicitly approved).
+- Deleted `docs/branding.md` (100% unfilled TODO stub, not applicable to a CLI/skill repo).
+- Rewrote `.claude/rules/read-video-architecture.md` — it described a generic web-app/DB template
+  that never matched this repo's actual single-file-CLI-engine shape; now accurately documents the
+  real layout, boundaries, and git workflow.
 
 ## Files in flight
-- `skill/SKILL.md`, `docs/cli-reference.md`, `CREDITS.md`, `docs/superpowers/specs/2026-07-01-upstream-v020-port-design.md` — Task 10 implementer editing (docs only, no runtime code).
-- Live install `C:\Users\a2021\.claude\skills\read-video\scripts\video.py` + `SKILL.md` — about to be overwritten by Task 10's sync step (from already-tested repo `skill/` copies).
+None. Everything committed and pushed.
 
 ## Changed
-Branch commits (all reviewed clean, zero Critical/Important across all 9 tasks): 6470f1f spec → b4c464e pin-overflow fix → 473c7be zero-cost constraint → 9cfd0a1 plan → 2e8518c T1 (scaffolding+`_parse_timestamp`) → 2a83559 T2 (Path.resolve hardening) → 5100e89 T3 (`_frame_delta`+`_dedupe_jobs`) → 9149f65 T4 (`_thumb_frames`) → 1141fde T5 (extraction wiring, conftest scene_clip green→lime fix) → 67070c7 T5-fix (frames_deduped default) → 17068d2 T6 (`--timestamps` pins) → 6785532 T7 (`_split_audio`/`_audio_duration`) → 119f870 T8 (chunked API transcription) → 3b50c3d T9 (estimate `note` + regression guard). 46/46 tests passing as of T9. SDD artifacts (untracked): `.superpowers/sdd/{progress.md, task-N-brief/report.md, review-*.diff}`.
+**This session, committed to `main` (all pushed):**
+- `c23912a` (merged from feature branch) — optional `yt-dlp` cookie auth
+  (`READ_VIDEO_YTDLP_COOKIES`), 79/79 tests.
+- `f26d2d8` — `.gitignore` scratch-file patterns + rewritten architecture rules doc.
+- `9dc030b` — two new specs (IG analysis retro spec, transcription-tiers parked design).
+- Merge commit fast-forwarded `instagram-capture-pipeline` → `main`; branch deleted.
+
+**Outside the repo** (user's Second Brain vault, not git-tracked):
+- 46 processed IG reels total in `...\06_Media\Transcripts\` + `_ig-index.md` (16 High / 16 Medium
+  / 10 Low / 4 skipped-carousel — includes the one-off test video `ig-DaR7Ycjj5e7.md` added this
+  session, rated High).
+- `READ_VIDEO_YTDLP_COOKIES` env var persisted via `setx`.
 
 ## Failed attempts
-- SkillSpector static scan of upstream = blanket 100/100 CRITICAL; useless verdict, manual review was resolution.
-- CSS `green` in scene_clip fixture: luma byte-identical to red under gray conversion (both 76) — any luma dedup collapses them. Fixed with `lime` (150).
-- Carried, unfixed by design (spec non-goals): `--backend captions` hard-errors despite probe `captions_available: true`; `run()` never applies inbox expansion to bare filenames; `_trx` argv not resolved (unreachable); luma-only dedup can't distinguish equal-brightness/different-chroma frames (upstream design limit, disclosed in fixture docstring); `_fmt_estimate` (--human CLI output) doesn't surface the new `note` key (JSON-only).
+(All resolved, carried forward for institutional memory — nothing currently broken.)
+- `yt-dlp --cookies-from-browser chrome` fails on Windows (DB lock) — fixed via `cookies.txt` +
+  env var instead.
+- Manual queue tracking by memory drifted (miscounted 46 vs 45) — fixed via disk-diff
+  (`comm -23`), now standing practice.
+- A background agent was resumed live by the user before the fetch-gate was verified — turned out
+  fine, but flagged as a real gap: a conversational-only gate can be bypassed by directly resuming
+  a background task. No code-level fix built for this (only relevant if it recurs).
 
 # Next steps
-1. **Immediate**: await Task 10 completion notification → `review-package 3b50c3d HEAD` → dispatch reviewer (sonnet) → on approval, ledger "Task 10 complete" → mark all SDD tracker tasks done.
-2. Final whole-branch review: most capable model, `review-package $(git merge-base main HEAD) HEAD`, feed it the ~15 accumulated Minor findings from the ledger for triage (none blocking so far).
-3. `superpowers:finishing-a-development-branch` — merge decision is user's, present the reviewed branch for go/no-go.
-4. Post-port items to surface to user: captions_available bug, inbox-expansion bug, luma-only dedup limitation, --human note visibility — none block merge, all are follow-up candidates.
-5. Parked: thread C (agent-harness), thread D (Instagram capture, design awaiting go/no-go), thread B (media types).
+1. **Nothing is blocking.** `main` is clean, pushed, tests green. This is a legitimate stopping
+   point.
+2. **If picking up Thread F:** read `docs/superpowers/specs/2026-07-03-transcription-thoroughness-
+   tiers-design.md`, go straight to `writing-plans` (design is already approved) →
+   `subagent-driven-development` on a new `feat/transcription-thoroughness-tiers` branch.
+3. **If picking up Thread E's formalization:** read `docs/superpowers/specs/2026-07-03-ig-capture-
+   analysis-pipeline-design.md`'s Non-goals — building a real `/instagram-analyze` command +
+   tests (mirroring `/instagram-capture`) is the natural next step, not started.
+4. Spot-check more of the 46 auto-generated `ig-*.md` note files for quality — only 2 have been
+   manually reviewed in detail so far.
+5. Thread B (extend media types) stays parked, no ETA, not to be started unprompted.
