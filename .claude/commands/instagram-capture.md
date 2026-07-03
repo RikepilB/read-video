@@ -1,5 +1,5 @@
 ---
-description: Capture up to N reel URLs from your Instagram "courses" saved-collection into read-video's inbox queue. Add --dry-run to preview without writing or unsaving anything.
+description: Capture up to N reel URLs from your Instagram "Cursos" saved-collection into read-video's inbox queue. Add --dry-run to preview without writing or unsaving anything.
 argument-hint: [N] [--dry-run]
 ---
 
