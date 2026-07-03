@@ -92,8 +92,10 @@ pip install faster-whisper      # local, $0, private — recommended for persona
 First use downloads a model (default `small`, ≈ 484 MB). See [docs/backends](skill/references/backends.md).
 
 ### 4. (Optional) workspace
-Copy `skill/workspace.example.json` to `skill/workspace.json` (gitignored) and set `inbox_dir` / `out_dir`
-to your folders. With it, you can pass **bare filenames** and the skill auto-saves notes.
+Copy `skill/workspace.example.json` to `workspace.json` **inside your installed skill directory**
+(e.g. `~/.claude/skills/read-video/workspace.json` — gitignored, not tracked in this repo) and set
+`inbox_dir` / `out_dir` to your folders. With it, you can pass **bare filenames** and the skill
+auto-saves notes.
 
 ### 5. (Optional) other agent harnesses
 `read-video` also works with Codex, Gemini CLI, and Copilot CLI — they share one install
