@@ -1,3 +1,8 @@
+> **Superseded 2026-07-03** — this repo now uses the `docs/handoff/` tree
+> (`docs/handoff/HANDOFF.md` is the current father). This file is kept as the historical record
+> for sessions before the tree existed (2026-06-30 → 2026-07-02). Don't update this file going
+> forward; update `docs/handoff/HANDOFF.md` + the active session folder instead.
+
 # Goal
 Wrap up and ship. Threads A/C/D/E all complete and merged to `main`. Thread F (transcription
 thoroughness tiers) designed and approved but explicitly parked, not implemented.
@@ -71,3 +76,11 @@ None. Everything committed and pushed.
 4. Spot-check more of the 46 auto-generated `ig-*.md` note files for quality — only 2 have been
    manually reviewed in detail so far.
 5. Thread B (extend media types) stays parked, no ETA, not to be started unprompted.
+6. **`docs/ROADMAP.md`** (new, **uncommitted**, planning-only) captures the user's long-term
+   vision: generalize read-video into a multi-platform (IG/X/TikTok/LinkedIn/Substack)
+   multi-media (image/audio/text, not just video) pipeline, packaged three ways — technical
+   repo, AI-agent-consumable skill bundles/MCP, and non-technical UI/hosted SaaS (Vercel AI SDK +
+   Anthropic/OpenAI). Phase 0 (generalize the capture-adapter and media-reader interfaces) is the
+   prerequisite for everything else; Phase 6 (SaaS) has a hard legal-review gate before launch.
+   **No implementation authorized** — each phase needs its own brainstorm→spec→plan cycle when
+   picked up. Ask the user whether to commit this file before starting any of it.
