@@ -143,6 +143,22 @@ not a feature bolted onto this one.
 6. **Phase 6 last**, and only after its own dedicated product + legal design pass — a different
    kind of project, not a natural extension of the CLI.
 
+## Parked idea — Instagram follower-management assistant
+
+**Not authorized for implementation. Next-endeavors only, raised 2026-07-09.** Vision: extend
+read-video into a social-media assistant that helps manage who follows/doesn't follow back, tracks
+interaction frequency per follower, and offers commands to unfollow, message, follow-back, block,
+or restrict based on that data.
+
+- **Reference repos (learn-from-only, do not copy code or transcribe their implementation —
+  clean-room this from the feature list above, not from reading their source):**
+  - https://github.com/cocohernandez/code-with-coco/tree/main/ig-unfollows
+  - https://github.com/haidityara/tools-ig
+  - https://github.com/GiovanniCasini/IG_unfollow
+- **Gate:** this is exactly the class of feature Phase 6.4 already flags — mass follow/unfollow/
+  block automation risks Instagram ToS violation and account suspension. Same legal-review gate
+  applies before this starts, regardless of which phase it's filed under.
+
 ## Open questions (flagged, not decided here)
 
 - **Naming/identity** — "read-video" undersells a multi-platform, multi-media,
