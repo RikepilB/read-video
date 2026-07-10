@@ -12,74 +12,50 @@ isn't enough.
 ## Current state
 
 All previously-shipped work is merged to `main` and pushed to `origin/main` (through commit
-`6957013`), 79/79 tests passing. Threads A (upstream v0.2.0 port), C (agent-harness packaging), D
-(Instagram capture pipeline), and E (IG capture→analysis pipeline) are all complete. Thread F
-(transcription thoroughness tiers — fixes a completeness gap on clips >~45s) has an **approved but
-unimplemented** spec, explicitly parked by user choice. `docs/ROADMAP.md` captures a long-term
-multi-platform/multi-media/three-audience vision (planning-only, currently uncommitted). This
-`docs/handoff/` tree was initialized this session.
+`1f8dacc`), 79/79 tests passing. Threads A/C/D/E complete. Thread F (transcription thoroughness
+tiers) has an **approved but unimplemented** spec, still parked. `docs/ROADMAP.md` (committed) now
+also has a sharpened Phase 2.5 (YouTube capture-adapter, next up) and 2.6 (Facebook, unscoped), a
+new `docs/decisions.md` ADR log (4 entries), and a parked, not-authorized follower-management-
+assistant idea. Repo is public, OSS-scaffolded (LICENSE/CONTRIBUTING/PR+issue templates — only
+`CODE_OF_CONDUCT.md` missing), with 5 GitHub issues total (#1 now closed, #2–#5 open).
 
-**New this session:** built `/ig-pipeline` — a real orchestrator command
-(`.claude/commands/ig-pipeline.md`) + new `ig-analyze-subagent` — formalizing Thread E's
-retro-spec'd capture→analyze flow into reusable tooling (dedup guard, per-video cost gate, cookie
-handling baked in). Uncommitted (tracked in issue #1). First 45-reel batch (5-video checkpoint +
-41-video batch, done manually before the command existed) is fully complete and disk-diff-verified
-— 40 new vault notes, 5 legitimate skips, `_ig-index.md` at 85 rows at that point.
+**This session** (2026-07-09-mega-request-triage) triaged a huge multi-part `/gsd-ship` request:
+confirmed most of it (repo/OSS scaffold, issues) was already done in a prior session; committed +
+pushed 6 pending doc/command files; logged the follower-management-assistant idea as parked with
+3 learn-from-only reference repos; then ran `grill-with-docs` to sharpen the "ideate 6-platform
+workflows" ask into a concrete decision: the platform-expansion track is the consumption pipeline
+(not the user's own publishing workflow), **YouTube is the next capture-adapter to spec** —
+official YouTube Data API v3 (not browser automation), Watch Later as the source list, videos
+removed from Watch Later on capture (mirrors IG's unsave-as-marker pattern), and Phase 0's
+capture-adapter interface deferred until *after* YouTube ships (extracted from two real examples,
+not designed upfront from one). Full rationale in `docs/decisions.md`. **No YouTube code exists
+yet** — this was ideation only, next step is a `writing-plans` cycle when picked up. Still gated,
+untouched from the original ask: `/ig-pipeline` re-run (needs live user), carousel/image-post
+transcription skill (ROADMAP Phase 1.1, not authorized), follower-management assistant (deferred,
+behind Phase 6.4's legal/ToS gate).
 
-**Then, same session, `/ig-pipeline 20` was run live for the first time** (first real dispatch of
-the finished command): capture phase succeeded (20 net-new reels into `urls.md`, all unsaved,
-0 dupes/aborts). Analysis phase **ran to completion**: all 20 processed, 0 skips, `_ig-index.md`
-grew 93→107 rows (105 data rows). One controller-side dispatch slip (`DYHfiH0Csdl` silently never
-sent, a recurrence of a prior-session failure mode) was caught by the standing disk-diff-before-
-done practice, fixed, and re-verified clean — vault now at 111 notes total. This is the **second**
-time this exact slip class has happened; see this session's folder (Failed attempts) for the
-pattern note and a possible spec gap in `/ig-pipeline` itself (no mandatory final disk-diff sweep
-before its "final report" step).
+**Prior sessions' history (unchanged, for context):** built `/ig-pipeline` (orchestrator command +
+`ig-analyze-subagent`) formalizing the IG capture→analyze flow; ran it live twice (45-reel batch,
+then a 20-reel dispatch — one controller-side dispatch-slip caught both times by disk-diff
+verification, a recurring failure class worth watching for in `/ig-pipeline` itself, see the
+2026-07-05 session folder); reorganized the resulting 111-note vault into title-slugged,
+category-sorted files with content-keyed (not filename-keyed) dedup; added a `/read-audio` command
+and used it to transcribe two personal hackathon-brainstorm voice memos into a new vault project
+folder. Full detail in each dated session folder below.
 
-**Then, a later session, the 111-note vault was reorganized**: renamed every `ig-<shortcode>.md`
-to a clean title-slug and sorted into 9 topic subfolders + `_Skipped` under
-`06_Media/Transcripts/`. Blocked first on `advisor`'s catch that a naive rename breaks
-`/ig-pipeline`'s filename-based dedup — resolved by keying dedup off each note's own `Source:`
-line instead. Also found and fixed a latent bug while at it: 6 files (1 real note + 5 skip
-markers) existed on disk but were never in `_ig-index.md` at all — folded into the rebuilt,
-category-grouped index (now 111 rows). Updated `.claude/commands/ig-pipeline.md` +
-`.claude/agents/ig-analyze-subagent.md` in lockstep so future runs write into this same structure
-(content-keyed dedup, per-video category classification, category-section index inserts) instead
-of regressing to flat root-level files. **Not yet exercised by a live pipeline run** — worth a
-small dispatch to confirm before trusting it at batch size. `_rename-manifest.tsv` (old→new paths)
-written to the vault as the only undo trail, since that vault has no git history of its own.
-
-**Then, new turn, a new capability was added: local audio transcription.** User handed over two
-personal `.m4a` voice memos (a hackathon-project brainstorm chat with a friend, unrelated to
-Instagram) and asked to both transcribe+note them and get a reusable command for future audio
-files. Confirmed `video.py` already handles local audio-only input fine (`tier audio`); cost-gated
-both files (`free: true, needs_install: false`, local `faster-whisper`); asked the user where to
-save (new `02_Execution/01_Active_Projects/Claude_LifeSciences_Hackathon/` project folder) and
-whether to proceed despite the still-parked Thread F completeness gap (both files are well past
-the ~45s threshold) — user chose to proceed now. Both files transcribed and noted: file 1
-(14m29s, `project-hackathon-call-1.md`) covers bioinformatics tool gaps as a project angle +
-hackathon logistics; file 2 (50m42s, `project-hackathon-call-2.md`) is far idea-denser — 6
-distinct candidate hackathon project ideas surfaced and ranked (paper-to-digital lab-protocol
-converter most pitch-ready; "GitHub for lab results"; research bookmark/organizer tool;
-result-triage layer over the bioinformatics stack; a STEM-education kit flagged out of scope; one
-unrelated class project excluded), plus the actual application questions pulled verbatim. User
-then pasted a raw keyword shortlist from the same conversation, folded into call 1's note as a new
-section. Built `.claude/commands/read-audio.md` — general-purpose, sequential (1-3 files at a
-time), cost-gated per file, not yet exercised as an actual slash-command invocation.
-
-Repo currently has 6 uncommitted items on `main`: `docs/ROADMAP.md`, this `docs/handoff/` tree,
-`.claude/commands/ig-pipeline.md`, `.claude/agents/ig-analyze-subagent.md` (both updated for the
-vault reorg), and now `.claude/commands/read-audio.md` (new). Not blocking, just undecided when to
-commit — loosely tracked in GitHub issue #1, whose file list is stale relative to current state.
-
-**GitHub issues** (`RikepilB/read-video`) mirror this tree's standing backlog as of this session:
-#1 (commit pending docs, updated), #3 (Thread F implementation), #4 (note-quality spot-check), #5
-(roadmap Phase 0 kickoff). #2 is a pre-existing unrelated bug report. Created via
-`/handoff-to-issues`, read-only on this tree.
+**GitHub issues** (`RikepilB/read-video`): #1 (commit pending docs) **closed this session**. #2
+(pre-existing bug report), #3 (Thread F implementation), #4 (note-quality spot-check), #5 (roadmap
+Phase 0 kickoff) — all still open.
 
 ## Session index
 _(newest first)_
 
+- **2026-07-09-mega-request-triage** — triaged a mixed-scope `/gsd-ship` mega-request (found
+  repo/OSS-scaffold/issues already done; committed+pushed 6 pending files; closed issue #1; logged
+  a parked follower-management-assistant idea with 3 reference repos); then ran `grill-with-docs`
+  to sharpen 6-platform ideation into a concrete YouTube capture-adapter design (Data API v3,
+  Watch Later, remove-on-capture marker, Phase 0 interface deferred) — recorded in new
+  `docs/decisions.md`; no code written, ideation + docs only.
 - **2026-07-05-f409bd2c** — reorganized the 111-note Instagram vault (title-slug filenames, 9
   topic folders + `_Skipped`, category-grouped `_ig-index.md`, `/ig-pipeline`/`ig-analyze-subagent`
   updated to match, blocked-then-fixed on an `advisor`-caught dedup-breakage risk, found+fixed a
