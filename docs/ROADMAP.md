@@ -80,6 +80,15 @@ there a Claude-in-Chrome-drivable UI or a real API alternative.
 - **2.3 LinkedIn saved posts**
 - **2.4 Substack saved/subscribed posts** — likely API/RSS-based, not browser automation;
   Substack has no bookmark-grid UI to drive the way IG/TikTok do.
+- **2.5 YouTube Watch Later — up next (sharpened 2026-07-09, see `docs/decisions.md`).** Read
+  axis already works (`video.py`/`yt-dlp` take a YouTube URL directly) — this milestone is capture
+  only. Official **YouTube Data API v3** (OAuth, not browser automation), source = **Watch Later**,
+  captured videos removed from Watch Later as the "captured" marker (mirrors IG's unsave pattern),
+  content-keyed dedup against the vault on top (unchanged from `/ig-pipeline`). Ships as a second
+  one-off adapter, same discipline as Instagram's — **not** built against a pre-designed interface.
+- **2.6 Facebook** — raised 2026-07-09, not yet scoped. Facebook's saved-items API is limited/
+  largely deprecated and its automation ToS is stricter than IG/YouTube — needs its own
+  feasibility+ToS pass before it can even get a milestone number that means anything.
 
 ## Phase 3 — Technical-audience packaging
 
@@ -134,7 +143,10 @@ not a feature bolted onto this one.
 
 ## Suggested sequencing (a sane default, not a commitment)
 
-1. **Phase 0 first** — everything else depends on the two interfaces existing.
+1. **Phase 0 first, except Milestone 0.1** — refined 2026-07-09: the capture-adapter interface
+   (0.1) is extracted *after* a second real adapter (YouTube, Phase 2.5) exists to compare against
+   Instagram's, not designed upfront from one example. Milestone 0.2 (media-reader interface) is
+   unaffected by this and can still go first.
 2. **Phase 1 + Phase 2 in parallel**, one milestone at a time — whichever platform or media type
    you personally want next, proving the Phase 0 interfaces actually generalize.
 3. **Phase 3** once ≥2 platforms and ≥2 media types exist, so the docs reflect a real pattern.
