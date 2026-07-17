@@ -11,18 +11,24 @@ isn't enough.
 
 ## Current state
 
-OpenAI Build Week implementation is present, uncommitted, on `codex/build-week-read-video`.
-The CLI now has adaptive local transcription, estimate-time model-download status, explicit
-cloud/model consent flags, conservative backend-chain gating, GPT-5.6 Sol/Terra/Luna pricing,
-32×32 patch estimation, a deterministic key-free fixture, and Build Week/submission docs. Fresh
-verification: `103 passed`, Python compilation green, real fixture probe→estimate→run green, and
-the blocked-cloud smoke created no converted audio. `.env.example` is now unignored.
+OpenAI Build Week extension is implemented, code-reviewed, and fixed on
+`codex/build-week-read-video` (7 commits ahead of `main`, all pushed to origin, working tree
+clean). `/code-review` found 9 real bugs (all in the new cost/consent gate); all 6 underlying
+fixes landed with regression tests — `pytest` 103 → **111 passed**. `SkillSpector` still returns
+`100/100 CRITICAL` (intentional env-key→cloud-request flow) — disposition: **accept + document**,
+covered in the new `SECURITY.md`. A **GitHub Pages landing page** (`docs/index.html`, no external
+fonts/CDN) is live at **https://rikepilb.github.io/read-video/**, built from this branch. A 9-beat
+demo shot list (`docs/demo-shot-list.md`) is drafted for the required <3-min Devpost video —
+**recording itself is still pending** (manual, needs a real >45s spoken clip for the transcription-
+tiers beat). Root `handoff.md` was untracked from git (internal artifact; this tree is canonical).
 
-Release is **not ready to install or submit**: `skillspector scan skill --no-llm` returned
-`100/100 CRITICAL — DO NOT INSTALL`, chiefly because API keys intentionally flow into authenticated
-cloud transcription requests. Required human work also remains: review that finding, compare
-fast/thorough on 2–3 original >45s videos, authorize dated commits, clean-clone test, `/feedback`,
-record/upload the public demo, and finish Devpost. No commits or pushes occurred. Full detail:
+**Still open before the 2026-07-21, 5PM PT deadline:** record/upload the demo video, run
+`/feedback` in the primary Codex task for the session ID, decide whether to submit from this
+branch or merge to `main` first, test-install from a clean clone, then submit the Devpost form
+(Developer Tools track) — written in the user's own voice, not AI-generated, per Devpost's own
+guidance. A separate, much bigger vision (universal browser-extension agent + multi-model
+orchestration across Instagram/LinkedIn/Substack/X) was explicitly parked for post-submission —
+see `docs/ROADMAP.md`'s new "Parked idea" section, not scoped or authorized. Full detail:
 `docs/handoff/2026-07-17-openai-build-week/HANDOFF.md`.
 
 ## Previous state — 2026-07-15 (superseded)
@@ -84,7 +90,14 @@ _(newest first)_
   `codex/build-week-read-video`: adaptive transcription, model/cloud consent gates, GPT-5.6
   pricing/vision accounting, fixture, tests, README, and submission runbook; `103 passed` and real
   smoke flow green, but SkillSpector returned CRITICAL/DO NOT INSTALL and human submission steps
-  remain. No commit/push.
+  remain. Later same session: committed (`b6b1c61`); ran `/code-review` (9 confirmed bugs) and
+  `/ponytail-review`; ran `/plan` for production-readiness + presentation, approved and executed —
+  fixed all 6 bugs with tests (103→111 passed), added `SECURITY.md` (SkillSpector accept+document),
+  untracked root `handoff.md`, built and shipped a GitHub Pages landing page (live at
+  rikepilb.github.io/read-video), caught and fixed a real bug via manual command verification
+  (privacy-proof demo command), and drafted a demo shot list (recording still pending). Parked a
+  separately-floated bigger multi-platform/multi-model vision in `docs/ROADMAP.md` per the user's
+  own explicit "stay focused" instruction.
 - **2026-07-15-deep-catch-up** — read-only orientation session (`deep-catch-up` skill), no code
   changes: delivered a full briefing covering read-video's capacities, the ROADMAP's captured
   feature vision, an honest startup/moat assessment, and technical+legal scalability read; no
