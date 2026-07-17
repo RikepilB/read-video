@@ -55,7 +55,7 @@ python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper
 | `--frames` | adaptive | override the frame count |
 | `--out-words` | `600` | assumed length of Claude's written answer (drives output-token cost) |
 | `--transcribe-mode` | `auto` | `auto` / `fast` / `thorough` faster-whisper profile; overrides duration routing |
-| `--agent-model` | `gpt-5.6-terra` | model rate and vision-token preset; includes GPT-5.6 Sol/Terra/Luna and Claude presets |
+| `--agent-model` | `pricing.json`'s `_active` | model rate and vision-token preset; includes GPT-5.6 Sol/Terra/Luna and Claude presets |
 | `--human` | off | print a readable table instead of JSON |
 
 **JSON output:**
