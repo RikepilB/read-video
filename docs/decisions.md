@@ -86,3 +86,14 @@ warn against ("no premature abstraction... three similar lines is better").
 
 **Consequences:** Phase 0 (capture-adapter interface) explicitly deferred until after the YouTube
 adapter ships — ROADMAP.md's phase ordering updated to reflect this.
+---
+
+### 2026-07-17 - Watch Later is not API-accessible; YouTube capture uses a dedicated private playlist
+
+**Context:** The 2026-07-09 YouTube decision chose the official YouTube Data API v3 and the built-in Watch Later playlist as the source queue. Current Google docs contradict the Watch Later part: `playlistItems.list` documents `watchLaterNotAccessible` and `playlistOperationUnsupported` errors for Watch Later, and `playlists.list` says the API cannot list the Watch Later playlist. Official API remains the right mechanism, but Watch Later is not a workable source.
+
+**Decision:** Supersede only the source-list portion of the 2026-07-09 decision. The YouTube capture adapter should use a user-owned private playlist, default title `Read Video Queue`, configured by playlist ID or discovered with `playlists.list?mine=true`. After each URL is durably appended to `urls.md`, remove that playlist item with `playlistItems.delete` as the captured marker.
+
+**Alternatives considered:** Keep Watch Later (rejected: official API docs say it is inaccessible). Browser automation for Watch Later (rejected for this adapter because the earlier decision explicitly chose the official API to avoid selector fragility). Leave the playlist untouched and rely only on content dedup (rejected: loses the visible pending queue signal that made the IG unsave marker useful).
+
+**Consequences:** One-time setup changes from "use Watch Later" to "create or choose a private queue playlist." The implementation plan must document OAuth, playlist ID/title configuration, quota cost (`playlistItems.list` is 1 unit; `playlistItems.delete` is 50 units), and the fact that `youtube.readonly` is insufficient for deletion.

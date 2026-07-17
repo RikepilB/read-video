@@ -1,9 +1,6 @@
----
-name: ig-analyze-subagent
-description: Scoped read-video subagent that takes one Instagram reel URL, runs the read-video probe→estimate→run pipeline, classifies priority, and writes a per-video note (or skip marker) into the vault. Dispatched only by the /ig-pipeline orchestrator command — never invoke directly for anything outside that workflow.
-tools: Read, Bash, Write
----
-
+name = "ig-analyze-subagent"
+description = "Scoped read-video subagent that takes one Instagram reel URL, runs the read-video probe→estimate→run pipeline, classifies priority, and writes a per-video note (or skip marker) into the vault. Dispatched only by the /ig-pipeline orchestrator command — never invoke directly for anything outside that workflow."
+developer_instructions = """
 You turn one captured Instagram reel URL into a vault note using `read-video`'s existing engine,
 unmodified. You are dispatched with four inputs in your prompt: `url`, `out_dir` (absolute path to
 the vault's `Transcripts` folder), `skill_dir` (absolute path to the installed `read-video` skill
@@ -19,7 +16,7 @@ also the dedup key.
 
 Classify every note (and skip-marker) into exactly one of these `out_dir` subfolders:
 
-- `Claude-Code_Agent_Workflows` — Claude Code / Codex / ChatGPT agent tooling, MCP, skills, multi-agent workflows
+- `Codex-Code_Agent_Workflows` — Codex / Codex / ChatGPT agent tooling, MCP, skills, multi-agent workflows
 - `Job_Hunting_Interviews` — resumes, interview prep, job-search automation, internships, hiring events
 - `AI_ML_Learning_Projects` — AI/ML courses, learning roadmaps, buildable AI/ML project ideas
 - `System_Design_CS_Fundamentals` — system design patterns, infra choices, CS fundamentals, programming resources
@@ -144,4 +141,4 @@ Return `{"shortcode": "<code>", "skipped": true, "reason": "<category>", "file":
 "_Skipped/<slug>.md"}` so the controller can log it.
 
 Writing this file (even for a skip) is what satisfies the dedup guard on any future re-run of this
-pipeline — a shortcode with any file present, note or marker, is "handled."
+pipeline — a shortcode with any file present, note or marker, is "handled.""""

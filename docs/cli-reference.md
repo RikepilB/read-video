@@ -51,21 +51,30 @@ python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper
 | flag | default | meaning |
 |---|---|---|
 | `--tier` | `both` | `visual` / `audio` / `both` — which channels to price |
-| `--backend` | `captions` | transcription backend to price (see [backends](../skill/references/backends.md)) |
+| `--backend` | `captions` | transcription backend or comma-separated fallback chain to price (see [backends](../skill/references/backends.md)) |
 | `--frames` | adaptive | override the frame count |
 | `--out-words` | `600` | assumed length of Claude's written answer (drives output-token cost) |
+| `--transcribe-mode` | `auto` | `auto` / `fast` / `thorough` faster-whisper profile; overrides duration routing |
+| `--agent-model` | `pricing.json`'s `_active` | model rate and vision-token preset; includes GPT-5.6 Sol/Terra/Luna and Claude presets |
 | `--human` | off | print a readable table instead of JSON |
 
 **JSON output:**
 ```json
 {
   "input": "clip.mp4", "source": "local", "duration_s": 73.6,
-  "tier": "both", "backend": "faster-whisper", "frames": 60, "per_frame_tokens": 197,
-  "tokens": { "frames": 11820, "transcript": 245, "output": 798, "overhead": 2000, "read_total": 14065 },
-  "cost_usd": { "transcription": 0.0, "agent": 0.27, "total": 0.27 },
+  "tier": "both", "backend": "faster-whisper", "frames": 60, "per_frame_tokens": 144,
+  "tokens": { "frames": 8640, "transcript": 245, "output": 798, "overhead": 2000, "read_total": 10885 },
+  "cost_usd": { "transcription": 0.0, "agent": 0.0392, "total": 0.0392 },
   "dominant_cost": "frames",
   "free": true,                       // no out-of-pocket $ (agent tokens may still apply)
-  "needs_install": false,             // chosen local backend isn't installed yet
+  "needs_install": false,             // any chosen local backend needs install
+  "transcribe_mode": "thorough",      // faster-whisper only; otherwise "none"
+  "agent_model": "gpt-5.6-terra",
+  "vision_estimator": "openai_patch32",
+  "cost_basis": "API-equivalent estimate; Codex subscription usage may not be billed per API token",
+  "requires_cloud_approval": false,
+  "needs_model_download": true,
+  "model_download": { "status": "required", "model": "medium" },
   "sidecar_transcript": null,
   "captions_available": false,
   "note": "frame dedup may reduce actual frames below this count"
@@ -79,16 +88,22 @@ budget as a worst case, and `run`'s dedup can only shrink the real count from th
 ```
 input: clip.mp4  (local, 73.6s)
 tier=both  backend=faster-whisper  frames=60
-  frames tokens:        11820
+agent=gpt-5.6-terra  vision=openai_patch32
+  frames tokens:         8640
   transcript tokens:      245
   output tokens:          798
   ---
   transcription: $0.0000
-  agent tokens:  $0.2700
-  TOTAL:         $0.2700   (dominant: frames)
+  agent tokens:  $0.0392
+  TOTAL:         $0.0392   (dominant: frames)
+  basis: API-equivalent estimate; Codex subscription usage may not be billed per API token
+  APPROVAL: one-time model download required (medium)
 ```
 
-**This is the gate.** The agent shows this to you and waits if `free` is false **or** `needs_install` is true.
+**This is the gate.** The agent waits if `free` is false, `needs_install` or
+`needs_model_download` is true, or `requires_cloud_approval` is true. If `--backend` is a
+comma-separated chain, `estimate` prices the most expensive backend in the chain, detects missing
+local dependencies anywhere in it, and requires cloud approval if any fallback could upload audio.
 
 ---
 
@@ -96,18 +111,21 @@ tier=both  backend=faster-whisper  frames=60
 
 ```bash
 python scripts/video.py run "clip.mp4" --tier both --backend faster-whisper
-python scripts/video.py run "clip.mp4" --tier audio --backend groq --start 60 --end 180
+python scripts/video.py run "clip.mp4" --tier audio --backend groq --allow-cloud --start 60 --end 180
 ```
 
 | flag | default | meaning |
 |---|---|---|
 | `--tier` | `both` | `visual` / `audio` / `both` |
-| `--backend` | `captions` | transcription backend |
+| `--backend` | `captions` | transcription backend or comma-separated fallback chain |
 | `--frames` | adaptive | override frame count |
 | `--start` / `--end` | `0` / full | analyze only a time window (seconds) |
 | `--workdir` | temp dir | where to write outputs (frames, transcript, manifest) |
 | `--timestamps` | none | comma-separated pins (`SS`/`MM:SS`/`HH:MM:SS`, e.g. `90,05:30`) reserved against the frame budget and never dropped by dedup |
 | `--no-dedup` | off | keep every sampled frame instead of dropping perceptual near-duplicates |
+| `--transcribe-mode` | `auto` | `auto` / `fast` / `thorough` faster-whisper profile; overrides duration routing |
+| `--allow-cloud` | off | explicit consent to use any cloud backend in the chain; rejected before conversion/upload otherwise |
+| `--allow-model-download` | off | explicit consent for a one-time faster-whisper model download |
 | `--human` | off | (run always emits JSON; flag is accepted for symmetry) |
 
 **Output** (also written to `<workdir>/manifest.json`):
@@ -132,6 +150,9 @@ pinned frame (from `--timestamps`) additionally carries `"pinned": true`. By def
 budget — `frames_deduped` is the count of frames dropped that way. Pass `--no-dedup` to disable it. The
 agent then `Read`s the listed JPGs and the transcript file and writes the answer.
 
+Approval flags are capabilities for one invocation, not persistent configuration. Pass them only
+after the user has reviewed the matching estimate and explicitly consented.
+
 > `faster-whisper` prints which model it actually used to **stderr** (`[read-video] faster-whisper model: small`,
 > or a `WARNING` if it fell back). Watch that line — it tells you whether you got full accuracy.
 
@@ -144,10 +165,11 @@ agent then `Read`s the listed JPGs and the transcript file and writes the answer
 | `GROQ_API_KEY` / `OPENAI_API_KEY` / `OPENROUTER_API_KEY` / `GEMINI_API_KEY` | the matching paid backend |
 | `READ_VIDEO_WHISPER_MODEL` | override faster-whisper size (`tiny`/`base`/`small`/`medium`/`large-v3`) or a model-dir path |
 | `READ_VIDEO_WHISPER_DIR` | faster-whisper `download_root` / cache dir |
+| `READ_VIDEO_TRANSCRIPTION_THOROUGH_THRESHOLD_S` | seconds above which `auto` uses the thorough faster-whisper profile |
 
 Keys are read **only** from the environment — never from `.env`.
 
 ## Config files (in the skill dir)
 
-- **`pricing.json`** — `transcription_per_min[backend]`, `model_per_mtok._active` + rate table, `frame.target_width`.
+- **`pricing.json`** — `transcription_per_min[backend]`, model rates and vision estimator, `frame.target_width`.
 - **`workspace.json`** (gitignored; copy from `workspace.example.json`) — `inbox_dir`, `out_dir`, `whisper_model`.

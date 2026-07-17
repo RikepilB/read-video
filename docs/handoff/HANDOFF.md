@@ -11,15 +11,54 @@ isn't enough.
 
 ## Current state
 
-All previously-shipped work is merged to `main` and pushed to `origin/main` (through commit
-`1f8dacc`), 79/79 tests passing. Threads A/C/D/E complete. Thread F (transcription thoroughness
-tiers) has an **approved but unimplemented** spec, still parked. `docs/ROADMAP.md` (committed) now
-also has a sharpened Phase 2.5 (YouTube capture-adapter, next up) and 2.6 (Facebook, unscoped), a
-new `docs/decisions.md` ADR log (4 entries), and a parked, not-authorized follower-management-
-assistant idea. Repo is public, OSS-scaffolded (LICENSE/CONTRIBUTING/PR+issue templates — only
-`CODE_OF_CONDUCT.md` missing), with 5 GitHub issues total (#1 now closed, #2–#5 open).
+OpenAI Build Week extension is implemented, code-reviewed, and fixed on
+`codex/build-week-read-video` (7 commits ahead of `main`, all pushed to origin, working tree
+clean). `/code-review` found 9 real bugs (all in the new cost/consent gate); all 6 underlying
+fixes landed with regression tests — `pytest` 103 → **111 passed**. `SkillSpector` still returns
+`100/100 CRITICAL` (intentional env-key→cloud-request flow) — disposition: **accept + document**,
+covered in the new `SECURITY.md`. A **GitHub Pages landing page** (`docs/index.html`, no external
+fonts/CDN) is live at **https://rikepilb.github.io/read-video/**, built from this branch. A 9-beat
+demo shot list (`docs/demo-shot-list.md`) is drafted for the required <3-min Devpost video —
+**recording itself is still pending** (manual, needs a real >45s spoken clip for the transcription-
+tiers beat). Root `handoff.md` was untracked from git (internal artifact; this tree is canonical).
 
-**This session** (2026-07-09-mega-request-triage) triaged a huge multi-part `/gsd-ship` request:
+**PR #7 is open** (https://github.com/RikepilB/read-video/pull/7, `codex/build-week-read-video` →
+`main`, 9 commits) — not yet merged, that's the user's call. GitHub issue #6
+(https://github.com/RikepilB/read-video/issues/6) tracks everything still open before the
+2026-07-21, 5PM PT deadline: record/upload the demo video, run `/feedback` for the session ID,
+decide merge-vs-branch (GitHub Pages currently serves from the branch, needs re-pointing to `main`
+after merge), test-install from a clean clone, then submit Devpost (Developer Tools track) —
+written in the user's own voice, not AI-generated, per Devpost's own guidance. A separate, much
+bigger vision (universal browser-extension agent + multi-model orchestration across
+Instagram/LinkedIn/Substack/X) was explicitly parked for post-submission — see `docs/ROADMAP.md`'s
+new "Parked idea" section, not scoped or authorized. Full detail:
+`docs/handoff/2026-07-17-openai-build-week/HANDOFF.md`.
+
+## Previous state — 2026-07-15 (superseded)
+
+All previously-shipped work is merged to `main` and pushed to `origin/main` (through commit
+`1f8dacc`), 79/79 tests passing (still green as of 2026-07-15). Threads A/C/D/E complete. Thread F
+(transcription thoroughness tiers) has an **approved but unimplemented** spec, still parked.
+`docs/ROADMAP.md` (committed) has a sharpened Phase 2.5 (YouTube capture-adapter, next up, no code
+yet) and 2.6 (Facebook, unscoped), a `docs/decisions.md` ADR log (4 entries), and a parked,
+not-authorized follower-management-assistant idea. Repo is public, OSS-scaffolded
+(LICENSE/CONTRIBUTING/PR+issue templates — only `CODE_OF_CONDUCT.md` missing), with 4 GitHub
+issues open (#2 bug, #3 Thread F, #4 note-quality spot-check, #5 Phase 0 kickoff). Untracked
+`.codex/` dir sitting in the working tree, uncommitted and not gitignored — unexplained, worth a
+look next time.
+
+**This session** (2026-07-15-deep-catch-up) was a read-only `deep-catch-up` orientation — no code
+changes. Delivered the user a full briefing on: what read-video is/does, the ROADMAP's
+already-captured feature vision (Phases 0-6 + parked follower-mgmt idea), an honest startup/moat
+read (thin wrapper over ffmpeg/yt-dlp/whisper — the real differentiation is cost-gate+privacy+
+agent-native UX, not the underlying tech; Phase 6 SaaS is explicitly the riskiest, least-validated,
+legally-gated track per the ROADMAP's own framing, not proven demand), and scalability on two axes
+(technical: no billing/multi-tenancy yet, Phase 0 capture/media interfaces not yet extracted;
+legal/business: ToS-at-scale is the real ceiling, Phase 6.4 gate). No direction chosen yet — user
+was offered YouTube-adapter planning, SaaS/legal feasibility research, or fixing issue #2 as next
+moves. Full detail in `docs/handoff/2026-07-15-deep-catch-up/HANDOFF.md`.
+
+**Prior session** (2026-07-09-mega-request-triage) triaged a huge multi-part `/gsd-ship` request:
 confirmed most of it (repo/OSS scaffold, issues) was already done in a prior session; committed +
 pushed 6 pending doc/command files; logged the follower-management-assistant idea as parked with
 3 learn-from-only reference repos; then ran `grill-with-docs` to sharpen the "ideate 6-platform
@@ -50,6 +89,26 @@ Phase 0 kickoff) — all still open.
 ## Session index
 _(newest first)_
 
+- **2026-07-17-openai-build-week** — implemented the approved Developer Tools extension on
+  `codex/build-week-read-video`: adaptive transcription, model/cloud consent gates, GPT-5.6
+  pricing/vision accounting, fixture, tests, README, and submission runbook; `103 passed` and real
+  smoke flow green, but SkillSpector returned CRITICAL/DO NOT INSTALL and human submission steps
+  remain. Later same session: committed (`b6b1c61`); ran `/code-review` (9 confirmed bugs) and
+  `/ponytail-review`; ran `/plan` for production-readiness + presentation, approved and executed —
+  fixed all 6 bugs with tests (103→111 passed), added `SECURITY.md` (SkillSpector accept+document),
+  untracked root `handoff.md`, built and shipped a GitHub Pages landing page (live at
+  rikepilb.github.io/read-video), caught and fixed a real bug via manual command verification
+  (privacy-proof demo command), and drafted a demo shot list (recording still pending). Parked a
+  separately-floated bigger multi-platform/multi-model vision in `docs/ROADMAP.md` per the user's
+  own explicit "stay focused" instruction. Ran `/handoff-to-issues` (filed issue #6, one grouped
+  checklist of remaining human-only steps) then `/gsd-ship` — repo has no GSD `.planning/` state,
+  so shipped manually: hand-written PR body from real commits/tests, opened PR #7
+  (`codex/build-week-read-video` → `main`), review skipped by user choice, not merged yet.
+- **2026-07-15-deep-catch-up** — read-only orientation session (`deep-catch-up` skill), no code
+  changes: delivered a full briefing covering read-video's capacities, the ROADMAP's captured
+  feature vision, an honest startup/moat assessment, and technical+legal scalability read; no
+  direction chosen, three next-move options offered (YouTube adapter plan / SaaS legal feasibility
+  research / issue #2 fix).
 - **2026-07-09-mega-request-triage** — triaged a mixed-scope `/gsd-ship` mega-request (found
   repo/OSS-scaffold/issues already done; committed+pushed 6 pending files; closed issue #1; logged
   a parked follower-management-assistant idea with 3 reference repos); then ran `grill-with-docs`

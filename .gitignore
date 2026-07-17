@@ -18,6 +18,7 @@ samples/*
 # --- Secrets ---
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 cookies*.txt
@@ -26,6 +27,9 @@ cookies*.txt
 20[0-9][0-9]-[01][0-9]-[0-3][0-9]-*-this-session-is-*.txt
 task-*-brief.md
 task-*-report.md
+# root handoff.md is an internal per-session artifact written by the harness's compaction hook;
+# this project's own docs/handoff/ tree is the durable, intentionally-public record.
+/handoff.md
 
 # --- Python ---
 __pycache__/
