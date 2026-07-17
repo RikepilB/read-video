@@ -51,8 +51,11 @@ python scripts/create-demo-fixture.py
 python skill/scripts/video.py estimate samples/build-week-demo.mp4 --tier both --backend captions --agent-model gpt-5.6-terra --human
 python skill/scripts/video.py run samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output
 
-# Privacy proof: exits before conversion or upload because --allow-cloud was not provided
-python skill/scripts/video.py run samples/build-week-demo.mp4 --tier audio --backend openai
+# Privacy proof: a sidecar transcript is free and always wins, so copy the video WITHOUT its
+# .srt to actually force the cloud backend chain -- this is what --allow-cloud rejects before
+# any conversion or upload.
+Copy-Item samples/build-week-demo.mp4 samples/privacy-proof.mp4
+python skill/scripts/video.py run samples/privacy-proof.mp4 --tier audio --backend openai
 ```
 
 Ask Codex to read the generated manifest, frames, and transcript and answer with `[MM:SS]`

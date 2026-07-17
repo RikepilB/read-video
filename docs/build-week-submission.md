@@ -27,7 +27,9 @@ summarize the generated artifacts.
   `--transcribe-mode fast` with `thorough`; show medium model, tuned VAD, and no previous-text
   conditioning.
 - **2:05–2:25 — Privacy proof:** attempt an OpenAI/Groq fallback chain without `--allow-cloud` and
-  show rejection before audio conversion/upload.
+  show rejection before audio conversion/upload. Use the `samples/privacy-proof.mp4` copy (README's
+  install section) — the main demo fixture has a sidecar transcript, which resolves for free and
+  never reaches the cloud backend at all, so it won't trigger the gate.
 - **2:25–2:40 — Collaboration + impact:** explain what Codex/GPT-5.6 implemented and the human
   decisions on threshold, privacy, cost conservatism, and scope.
 
