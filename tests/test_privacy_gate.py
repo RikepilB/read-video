@@ -40,3 +40,22 @@ def test_cloud_chain_runs_only_after_explicit_approval(tmp_path, monkeypatch):
                     allow_cloud=True)
 
     assert out["transcript_chars"] == 2
+
+
+def test_cloud_chain_not_gated_when_sidecar_resolves_for_free(tmp_path, monkeypatch):
+    """A sidecar transcript short-circuits _transcribe() before the chain is ever consulted, so
+    naming a cloud backend as a fallback preference must not demand --allow-cloud."""
+    sidecar = tmp_path / "clip.srt"
+    sidecar.write_text("1\n00:00:00,000 --> 00:00:01,000\nhello\n", encoding="utf-8")
+
+    calls = []
+    monkeypatch.setattr(video, "probe",
+                        lambda inp: {**_probe(inp), "sidecar_transcript": str(sidecar)})
+    monkeypatch.setattr(video, "_download", lambda *args: calls.append("download"))
+    monkeypatch.setattr(video, "_to_audio", lambda *args: calls.append("audio"))
+    monkeypatch.setattr(video, "_api_transcribe", lambda *args: calls.append("upload"))
+
+    out = video.run("x.mp4", tier="audio", backend="groq", workdir=str(tmp_path))
+
+    assert calls == []
+    assert out["transcript_chars"] > 0
