@@ -213,6 +213,7 @@ read-video/
 ├── README.md                  ← you are here
 ├── LICENSE                    ← MIT
 ├── CREDITS.md                 ← prior art + dependencies
+├── SECURITY.md                ← reporting a vuln + the intentional gated cloud-call data flow
 ├── docs/
 │   ├── architecture.md        ← how/why it's built this way (the cost model, channels, cascade)
 │   ├── cli-reference.md       ← the engine "API": probe / estimate / run, flags, JSON shapes
@@ -249,6 +250,13 @@ against the populated queue separately, exactly as documented above.
 Issues and PRs welcome — this is meant to improve over time. Good first areas: more backends, smarter
 visual-change frame selection (vs fixed budget), Linux/macOS path testing, better non-English defaults.
 See [CREDITS.md](CREDITS.md) for prior art and the dependency map.
+
+## Security
+
+Cloud transcription backends are opt-in and consent-gated (see the COST GATE section above) —
+`run` never sends audio to a paid API without explicit `--allow-cloud`. See
+[SECURITY.md](SECURITY.md) for the full rationale, including how a static scanner's data-flow
+finding on this intentional path should be read.
 
 ## License
 
