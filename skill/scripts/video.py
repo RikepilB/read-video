@@ -75,8 +75,9 @@ DEFAULT_PRICING: dict[str, Any] = {
         "gpt-5.6-sol": {"input": 5.0, "output": 30.0, "vision_estimator": "openai_patch32"},
         "gpt-5.6-terra": {"input": 2.5, "output": 15.0, "vision_estimator": "openai_patch32"},
         "gpt-5.6-luna": {"input": 1.0, "output": 6.0, "vision_estimator": "openai_patch32"},
-        "opus-4.8": {"input": 15.0, "output": 75.0,
-                     "vision_estimator": "claude_pixels_750"},
+        "opus-4.8": {"input": 15.0, "output": 75.0, "vision_estimator": "claude_pixels_750"},
+        "sonnet-4.6": {"input": 3.0, "output": 15.0, "vision_estimator": "claude_pixels_750"},
+        "haiku-4.5": {"input": 1.0, "output": 5.0, "vision_estimator": "claude_pixels_750"},
     },
     "frame": {"target_width": 512},
 }
@@ -260,16 +261,20 @@ def _requested_whisper_model(profile: str, model_size: str | None = None) -> tup
 
 
 def _model_available_locally(model: str, download_root: str | None = None) -> bool:
-    """Check a faster-whisper model without contacting Hugging Face."""
+    """Check whether a faster-whisper model is already cached, reusing the same offline-load
+    probe `_faster_whisper` uses at actual transcription time (avoids guessing HF repo naming,
+    which differs from the plain `Systran/faster-whisper-<size>` pattern for large/distil/turbo)."""
     if Path(model).exists():
         return True
     try:
-        from huggingface_hub import snapshot_download
-        repo_id = model if "/" in model else f"Systran/faster-whisper-{model}"
-        snapshot_download(repo_id, cache_dir=download_root, local_files_only=True)
+        _new_whisper(model, download_root, True)
         return True
     except Exception:
         return False
+
+
+def _whisper_candidates(requested: str, is_path: bool) -> list[str]:
+    return [requested] if is_path else [requested] + [m for m in _WHISPER_FALLBACKS if m != requested]
 
 
 def _model_download_info(want_audio: bool, chain: list[str], sidecar: str | None,
@@ -279,8 +284,11 @@ def _model_download_info(want_audio: bool, chain: list[str], sidecar: str | None
     requested, root = _requested_whisper_model(profile)
     if not _have_local_backend("faster-whisper"):
         return {"status": "dependency_missing", "model": requested}
-    status = "cached" if _model_available_locally(requested, root) else "required"
-    return {"status": status, "model": requested}
+    is_path = Path(requested).exists()
+    # A download is only actually required if no candidate -- requested or a cached smaller
+    # fallback -- is available; run() gracefully degrades to a cached fallback either way.
+    cached = any(_model_available_locally(c, root) for c in _whisper_candidates(requested, is_path))
+    return {"status": "cached" if cached else "required", "model": requested}
 
 
 def estimate(inp: str, frames: int | None = None, backend: str = "captions",
@@ -306,7 +314,11 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     transcript_tokens = round(dur_min * 200) if want_audio else 0   # ~150 wpm * 1.33 tok/word
     output_tokens = round(out_words * 1.33)
 
-    rates = [pr["transcription_per_min"].get(b, 0.0) for b in chain] if want_audio else []
+    # A sidecar transcript short-circuits _transcribe() before the chain is ever consulted (see
+    # _transcribe()), so it's free regardless of what backend/chain was passed.
+    has_sidecar = bool(info.get("sidecar_transcript"))
+    rates = ([pr["transcription_per_min"].get(b, 0.0) for b in chain]
+             if want_audio and not has_sidecar else [])
     rate = max(rates) if rates else 0.0
     transcription_usd = round(dur_min * rate, 4)
 
@@ -316,7 +328,7 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
     total = round(transcription_usd + agent_usd, 4)
 
     drivers = {"frames": frames_tokens, "transcript": transcript_tokens, "output": output_tokens}
-    needs_install = want_audio and not info.get("sidecar_transcript") and any(
+    needs_install = want_audio and not has_sidecar and any(
         b in ("trx", "faster-whisper", "local") and not _have_local_backend(b)
         for b in chain
     )
@@ -339,7 +351,8 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
         "cost_basis": ("API-equivalent estimate; Codex subscription usage may not be billed "
                        "per API token" if selected_model.startswith("gpt-5.6-")
                        else "API token estimate"),
-        "requires_cloud_approval": want_audio and any(b in CLOUD_BACKENDS for b in chain),
+        "requires_cloud_approval": want_audio and not has_sidecar
+                                   and any(b in CLOUD_BACKENDS for b in chain),
         "needs_model_download": download["status"] == "required",
         "model_download": download,
         "sidecar_transcript": info.get("sidecar_transcript"),
@@ -365,7 +378,10 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
     want_frames = tier in ("visual", "both")
     want_audio = tier in ("audio", "both")
     chain = _backend_chain(backend) if want_audio else []
-    if any(b in CLOUD_BACKENDS for b in chain) and not allow_cloud:
+    # A sidecar transcript short-circuits _transcribe() before the chain is ever consulted, so a
+    # cloud backend named in the chain is never actually called -- don't demand consent for it.
+    if (not info.get("sidecar_transcript") and any(b in CLOUD_BACKENDS for b in chain)
+            and not allow_cloud):
         raise PermissionError(
             "transcription backend chain contains a cloud service; review `estimate`, obtain "
             "explicit user consent, then rerun with --allow-cloud")
@@ -834,31 +850,32 @@ def _faster_whisper(audio: str, model_size: str | None = None,
     requested, cfg_root = _requested_whisper_model(profile, model_size)
     download_root = download_root or cfg_root
     is_path = Path(requested).exists()                    # a pre-downloaded model dir is used verbatim
-    candidates = [requested] if is_path else [requested] + [m for m in _WHISPER_FALLBACKS if m != requested]
+    candidates = _whisper_candidates(requested, is_path)
 
     model = used = None
     errors: list[str] = []
-    for i, size in enumerate(candidates):
-        try:                                              # offline-first: load from cache, no network
+    for size in candidates:                                # offline-first: load from cache, no network
+        try:
             model, used = _new_whisper(size, download_root, True), size
             break
         except Exception as ex:
             errors.append(f"{size} offline: {type(ex).__name__}: {str(ex)[:90]}")
-        if i == 0 and not is_path:                        # only download the *requested* size, not fallbacks
-            if not allow_model_download:
-                raise RuntimeError(
-                    f"faster-whisper model '{requested}' is not cached; review `estimate`, obtain "
-                    "explicit user consent, then rerun with --allow-model-download")
-            for attempt in range(3):
-                try:
-                    model, used = _new_whisper(size, download_root, False), size
-                    break
-                except Exception as ex:
-                    errors.append(f"{size} online#{attempt + 1}: {type(ex).__name__}: {str(ex)[:90]}")
-                    if attempt < 2:
-                        time.sleep(2.0 * (attempt + 1))
-            if model is not None:
+
+    # Only reached if NOT ONE candidate (requested or a cached fallback) loaded offline -- a real
+    # download is required. Only the *requested* size is ever downloaded, never a fallback.
+    if model is None and not is_path:
+        if not allow_model_download:
+            raise RuntimeError(
+                f"faster-whisper model '{requested}' is not cached; review `estimate`, obtain "
+                "explicit user consent, then rerun with --allow-model-download")
+        for attempt in range(3):
+            try:
+                model, used = _new_whisper(requested, download_root, False), requested
                 break
+            except Exception as ex:
+                errors.append(f"{requested} online#{attempt + 1}: {type(ex).__name__}: {str(ex)[:90]}")
+                if attempt < 2:
+                    time.sleep(2.0 * (attempt + 1))
 
     if model is None:
         raise RuntimeError(
@@ -1108,8 +1125,9 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--tier", default="both", choices=["visual", "audio", "both"])
     e.add_argument("--transcribe-mode", default="auto", choices=["auto", "fast", "thorough"],
                    help="faster-whisper profile override (default: route by duration)")
-    e.add_argument("--agent-model", default="gpt-5.6-terra",
-                   help="agent/API rate preset used for token-cost estimation")
+    e.add_argument("--agent-model", default=None,
+                   help="agent/API rate preset used for token-cost estimation "
+                        "(default: pricing.json's model_per_mtok._active)")
 
     r = sub.add_parser("run", help="extract frames (+transcript) into a workdir")
     r.add_argument("input")

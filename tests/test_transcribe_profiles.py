@@ -17,6 +17,25 @@ class FakeModel:
         return [SimpleNamespace(start=1.0, text=" hello ")], None
 
 
+def test_model_available_locally_reuses_new_whisper_offline_probe(monkeypatch):
+    """Must not hardcode an HF repo-id guess -- large/distil/turbo variants use different orgs
+    than the plain 'Systran/faster-whisper-<size>' pattern. Reusing _new_whisper's real
+    WhisperModel resolution keeps estimate()'s cache check honest for every model name."""
+    calls = []
+
+    def fake_new_whisper(size, root, offline):
+        calls.append((size, root, offline))
+        if size == "large":
+            raise RuntimeError("not cached")
+        return object()
+
+    monkeypatch.setattr(video, "_new_whisper", fake_new_whisper)
+
+    assert video._model_available_locally("small", "root") is True
+    assert video._model_available_locally("large", "root") is False
+    assert calls == [("small", "root", True), ("large", "root", True)]
+
+
 def test_transcribe_profile_routes_by_threshold(monkeypatch):
     monkeypatch.setattr(video, "load_workspace", lambda: {})
     assert video._transcribe_profile(45.0, threshold_s=45.0) == "fast"
@@ -72,6 +91,27 @@ def test_faster_whisper_degrades_when_vad_parameters_unsupported(monkeypatch):
 
     assert video._faster_whisper("audio.mp3", duration_s=46.0) == "[00:01] hello"
     assert model.calls[-1] == ("audio.mp3", {})
+
+
+def test_faster_whisper_degrades_to_cached_fallback_without_download_consent(monkeypatch):
+    """Requested ('medium') fails offline, but a cached fallback ('small') succeeds -- must NOT
+    raise even with allow_model_download=False, since no actual download is needed."""
+    model = FakeModel()
+    sizes = []
+
+    def fake_new_whisper(size, root, offline):
+        sizes.append(size)
+        if size == "medium":
+            raise RuntimeError("not cached")
+        return model
+
+    monkeypatch.setattr(video, "_whisper_settings", lambda: ("small", None))
+    monkeypatch.setattr(video, "_new_whisper", fake_new_whisper)
+
+    result = video._faster_whisper("audio.mp3", duration_s=46.0, allow_model_download=False)
+
+    assert result == "[00:01] hello"
+    assert sizes == ["medium", "small"]
 
 
 def test_estimate_reports_forced_transcribe_mode(monkeypatch):
