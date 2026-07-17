@@ -173,6 +173,30 @@ or restrict based on that data.
   block automation risks Instagram ToS violation and account suspension. Same legal-review gate
   applies before this starts, regardless of which phase it's filed under.
 
+## Parked idea — universal browser-extension agent + multi-model reader
+
+**Not authorized for implementation. Next-endeavors only, raised 2026-07-17 (mid Build Week —
+explicitly deferred by the user to stay focused on the current submission).** Vision: a much
+bigger evolution than Phase 0-6 above — instead of one-off capture adapters per platform (IG done,
+YouTube spec'd), a generic **browser-extension-driven agent** any harness (Claude-in-Chrome,
+ChatGPT's browser tooling, etc.) can drive to access and interact with video/content across
+Instagram, LinkedIn, Substack, X, "anything with a browser." Paired with **multi-model
+specialization** instead of one active pricing preset: Gemini for search-context and native video
+understanding, Grok (or similar) for video/transcript reading, GPT for DOM-awareness/browser-
+optimization/tab-and-window handling, and a cheap open-source all-in-one orchestrator (e.g. Kimi)
+for task management, skill creation, and agent specialization across the fleet.
+
+- **Why parked, not scoped:** this is a different shape of project than the CLI-first, one-adapter-
+  at-a-time discipline every phase above follows (see the "not a pre-designed interface" rule
+  Phase 2.5/2.6 already state) — it needs its own ideation pass (`grill-with-docs`) and probably
+  its own repo-vs-package decision (see Open questions below), not a bolt-on to Phase 0-6.
+  Also every platform named here inherits the same per-platform ToS/legal gate Phase 6.4 and the
+  follower-management idea above already flag — none of that changes just because the access
+  method is a browser extension instead of an API.
+  - **Next step when picked up:** file as GitHub issues (one per platform-adapter idea + one for
+    the multi-model orchestration layer) and/or a dedicated milestone, then run `grill-with-docs`
+    before any spec work — do not start coding from this paragraph alone.
+
 ## Open questions (flagged, not decided here)
 
 - **Naming/identity** — "read-video" undersells a multi-platform, multi-media,
