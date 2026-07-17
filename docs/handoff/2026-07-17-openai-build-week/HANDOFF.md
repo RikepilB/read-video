@@ -46,15 +46,18 @@ preserving all pre-existing dirty work and withholding commits/pushes until expl
   the runbook identify the pending evidence instead of inventing it.
 
 ## Next steps
+- **Merge PR #7** (https://github.com/RikepilB/read-video/pull/7, 9 commits,
+  `codex/build-week-read-video` → `main`) when ready. After merging/deleting the branch, re-point
+  Settings > Pages from the branch to `main` — Pages currently serves from the branch specifically.
 - **Record the demo video** against `docs/demo-shot-list.md` in OpenScreen (manual — the skill
   can't drive the recording). Need a real spoken clip >45s for beat 5 first.
 - Run `read-video --tier visual` against the recording to review pacing/coverage beat-by-beat,
   iterate, then upload the <3-min public YouTube video.
 - Run the full skill in the primary GPT-5.6 Codex task, submit `/feedback`, and replace the
   README/runbook's session-ID placeholder with the confirmed one.
-- Merge `codex/build-week-read-video` to `main` (or decide to submit straight from the branch —
-  GitHub Pages is already serving from this branch specifically); test install from a clean clone.
+- Test install from a clean clone.
 - Submit Devpost (category: Developer Tools) by 2026-07-21, 5:00 PM PT.
+- Tracked in GitHub issue #6 (https://github.com/RikepilB/read-video/issues/6).
 
 ## Update — later same session (post-commit)
 - Working tree is now clean; commit `b6b1c61 feat: finish build week read-video plan` landed
@@ -125,6 +128,28 @@ orchestrator) but explicitly said to stay focused on the current submission and 
 later. Logged as a new "Parked idea" section in `docs/ROADMAP.md` (commit `ee8fa94`), same pattern
 as the existing follower-management-assistant entry — not scoped, not authorized, next step is
 `grill-with-docs` when picked up post-submission.
+
+## Update — handoff-to-issues + gsd-ship (same day, continued)
+
+Ran `/handoff-to-issues`: harvested the remaining human-only next-steps into one grouped issue
+(no code work left to harvest — all 6 bugs already fixed). Created label `user-action` (didn't
+exist) and filed **issue #6** (https://github.com/RikepilB/read-video/issues/6) with a 9-item
+checklist (record video, review, upload, `/feedback`, replace placeholder, merge-vs-branch
+decision, clean-clone test, Devpost submit, own-voice description reminder). Did not touch this
+handoff tree from that skill, per its read-only contract. Deliberately did not harvest the
+newly-parked ROADMAP vision — out of that skill's declared source scope (HANDOFF.md +
+current-session Next steps + LATER-TASKS.md only, not ROADMAP.md).
+
+Ran `/gsd-ship`: this repo has **no GSD `.planning/` state** (`phase_found: false`,
+`planning_exists: false`, confirmed via `gsd_run query init.phase-op`) — it uses this
+`docs/handoff/` tree instead, not GSD's phase/plan/verify pipeline. Asked the user how to proceed;
+chose "ship manually, GSD-style": ran the applicable preflight checks (clean tree, correct branch,
+remote, `gh` auth — all pass), then hand-wrote a rich PR body from this session's actual commits/
+tests/decisions (skipping GSD's PLAN.md/VERIFICATION.md-sourced sections and the TDD-audit
+`gate_status` trailer, which don't apply to this repo's commit conventions). Created **PR #7**
+(https://github.com/RikepilB/read-video/pull/7, `codex/build-week-read-video` → `main`, 9 commits).
+User chose to skip an additional review round (already code-reviewed + ponytail-reviewed this
+diff earlier). Did not merge — that's still the user's call.
 
 ## Files in this folder
 - `HANDOFF.md` — this curated digest

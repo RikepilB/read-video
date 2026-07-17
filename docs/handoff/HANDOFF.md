@@ -22,13 +22,16 @@ demo shot list (`docs/demo-shot-list.md`) is drafted for the required <3-min Dev
 **recording itself is still pending** (manual, needs a real >45s spoken clip for the transcription-
 tiers beat). Root `handoff.md` was untracked from git (internal artifact; this tree is canonical).
 
-**Still open before the 2026-07-21, 5PM PT deadline:** record/upload the demo video, run
-`/feedback` in the primary Codex task for the session ID, decide whether to submit from this
-branch or merge to `main` first, test-install from a clean clone, then submit the Devpost form
-(Developer Tools track) — written in the user's own voice, not AI-generated, per Devpost's own
-guidance. A separate, much bigger vision (universal browser-extension agent + multi-model
-orchestration across Instagram/LinkedIn/Substack/X) was explicitly parked for post-submission —
-see `docs/ROADMAP.md`'s new "Parked idea" section, not scoped or authorized. Full detail:
+**PR #7 is open** (https://github.com/RikepilB/read-video/pull/7, `codex/build-week-read-video` →
+`main`, 9 commits) — not yet merged, that's the user's call. GitHub issue #6
+(https://github.com/RikepilB/read-video/issues/6) tracks everything still open before the
+2026-07-21, 5PM PT deadline: record/upload the demo video, run `/feedback` for the session ID,
+decide merge-vs-branch (GitHub Pages currently serves from the branch, needs re-pointing to `main`
+after merge), test-install from a clean clone, then submit Devpost (Developer Tools track) —
+written in the user's own voice, not AI-generated, per Devpost's own guidance. A separate, much
+bigger vision (universal browser-extension agent + multi-model orchestration across
+Instagram/LinkedIn/Substack/X) was explicitly parked for post-submission — see `docs/ROADMAP.md`'s
+new "Parked idea" section, not scoped or authorized. Full detail:
 `docs/handoff/2026-07-17-openai-build-week/HANDOFF.md`.
 
 ## Previous state — 2026-07-15 (superseded)
@@ -97,7 +100,10 @@ _(newest first)_
   rikepilb.github.io/read-video), caught and fixed a real bug via manual command verification
   (privacy-proof demo command), and drafted a demo shot list (recording still pending). Parked a
   separately-floated bigger multi-platform/multi-model vision in `docs/ROADMAP.md` per the user's
-  own explicit "stay focused" instruction.
+  own explicit "stay focused" instruction. Ran `/handoff-to-issues` (filed issue #6, one grouped
+  checklist of remaining human-only steps) then `/gsd-ship` — repo has no GSD `.planning/` state,
+  so shipped manually: hand-written PR body from real commits/tests, opened PR #7
+  (`codex/build-week-read-video` → `main`), review skipped by user choice, not merged yet.
 - **2026-07-15-deep-catch-up** — read-only orientation session (`deep-catch-up` skill), no code
   changes: delivered a full briefing covering read-video's capacities, the ROADMAP's captured
   feature vision, an honest startup/moat assessment, and technical+legal scalability read; no
