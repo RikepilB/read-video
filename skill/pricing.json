@@ -1,5 +1,5 @@
 {
-  "_note": "Editable rate table read by scripts/video.py. transcription_per_min = USD per minute of audio. model_per_mtok = USD per 1,000,000 tokens. Update as provider prices drift. Seeded June 2026.",
+  "_note": "Editable rate table read by scripts/video.py. transcription_per_min = USD per minute of audio. model_per_mtok = API-equivalent USD per 1,000,000 tokens. Codex subscription usage may not be billed per API token. Update as provider prices drift. Updated July 2026.",
   "transcription_per_min": {
     "captions": 0.0,
     "sidecar": 0.0,
@@ -13,13 +13,16 @@
     "gemini": 0.037
   },
   "model_per_mtok": {
-    "_active": "opus-4.8",
-    "opus-4.8":   { "input": 15.0, "output": 75.0 },
-    "sonnet-4.6": { "input": 3.0,  "output": 15.0 },
-    "haiku-4.5":  { "input": 1.0,  "output": 5.0 }
+    "_active": "gpt-5.6-terra",
+    "gpt-5.6-sol":   { "input": 5.0,  "output": 30.0, "vision_estimator": "openai_patch32" },
+    "gpt-5.6-terra": { "input": 2.5,  "output": 15.0, "vision_estimator": "openai_patch32" },
+    "gpt-5.6-luna":  { "input": 1.0,  "output": 6.0,  "vision_estimator": "openai_patch32" },
+    "opus-4.8":      { "input": 15.0, "output": 75.0, "vision_estimator": "claude_pixels_750" },
+    "sonnet-4.6":    { "input": 3.0,  "output": 15.0, "vision_estimator": "claude_pixels_750" },
+    "haiku-4.5":     { "input": 1.0,  "output": 5.0,  "vision_estimator": "claude_pixels_750" }
   },
   "frame": {
     "target_width": 512,
-    "_comment": "Frames are downscaled to this width before the agent reads them. Claude vision tokens ~= (w*h)/750, so width bounds the dominant cost."
+    "_comment": "Frames are downscaled to this width before the agent reads them. GPT-5.6 uses ceil(w/32)*ceil(h/32) patches; Claude presets retain the legacy ceil(w*h/750) estimator."
   }
 }

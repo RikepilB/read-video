@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import video
@@ -50,7 +51,8 @@ def test_cap_jobs_even_samples_and_keeps_pins(tmp_path):
 def test_audio_tier_includes_frames_deduped_key(static_clip, tmp_path, monkeypatch):
     """Verify that run() output always includes frames_deduped key, even on audio-only tier."""
     # Monkeypatch _transcribe to return a stub result without network access
-    def mock_transcribe(inp, info, media, wd, backend):
+    def mock_transcribe(inp, info, media, wd, backend, transcribe_mode="auto",
+                        allow_model_download=False):
         # Create a dummy transcript file
         tpath = wd / "transcript.txt"
         tpath.write_text("dummy transcript", encoding="utf-8")
@@ -64,6 +66,25 @@ def test_audio_tier_includes_frames_deduped_key(static_clip, tmp_path, monkeypat
     assert "frames_deduped" in result
     assert result["frames_deduped"] == 0
     assert result["frames"] == []
+
+
+@requires_ffmpeg
+def test_run_resolves_workspace_bare_filename_for_frames(static_clip, tmp_path, monkeypatch):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    media = inbox / "bare.mp4"
+    shutil.copyfile(static_clip, media)
+
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    monkeypatch.setattr(video, "load_workspace", lambda: {"inbox_dir": str(inbox)})
+
+    result = video.run("bare.mp4", tier="visual", frames=2, workdir=str(tmp_path / "work"),
+                       dedup=False)
+
+    assert result["frames"]
+    assert all(Path(frame["file"]).exists() for frame in result["frames"])
 
 
 @requires_ffmpeg

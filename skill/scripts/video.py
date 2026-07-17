@@ -6,8 +6,8 @@ Subcommands (the agent drives these in order):
   estimate  compute $ + token cost BEFORE any work -> JSON shown to the user at the cost gate
   run       extract frames (+ optional transcript) into a workdir for the agent to Read
 
-Why this shape: Claude's Read tool sees images, not video. So "reading" a video means turning it
-into frames (JPGs) + text (a transcript). The expensive part is the agent's own tokens (frames
+Why this shape: coding agents read images, not video. So "reading" a video means turning it into
+frames (JPGs) + text (a transcript). The expensive part is the agent's own tokens (frames
 dominate), so `estimate` exists to price the whole job up front and let the user decide go/skip.
 
 Only ffmpeg / ffprobe / yt-dlp are needed for the FREE paths (captions + visual frames). Paid and
@@ -52,6 +52,7 @@ BACKEND_API = {
     "openai-mini": ("OPENAI_API_KEY",     "https://api.openai.com/v1/audio/transcriptions",      "gpt-4o-mini-transcribe", False),
     "openrouter":  ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/audio/transcriptions",   "openai/whisper-1",       True),
 }
+CLOUD_BACKENDS = frozenset((*BACKEND_API, "gemini"))
 _WHISPER_UA = "read-video-skill/1.0 (+claude-code; python-urllib)"  # Groq's Cloudflare WAF 403s default urllib UA
 _MAX_ATTEMPTS = 4
 _MAX_429 = 2
@@ -60,14 +61,23 @@ _MAX_429 = 2
 # (e.g. Spanish meetings); 'tiny'/'base' are much weaker there. If the chosen size can't be obtained
 # we fall back to a smaller *cached* one and warn loudly, rather than silently degrading.
 _WHISPER_DEFAULT = "small"
+_WHISPER_THOROUGH_DEFAULT = "medium"
 _WHISPER_FALLBACKS = ("small", "base", "tiny")
+_TRANSCRIBE_THOROUGH_THRESHOLD_S = 45.0
 
 DEFAULT_PRICING: dict[str, Any] = {
     "transcription_per_min": {
         "captions": 0.0, "sidecar": 0.0, "local": 0.0, "trx": 0.0, "faster-whisper": 0.0,
         "groq": 0.0007, "openai-mini": 0.003, "openai": 0.006, "openrouter": 0.006, "gemini": 0.037,
     },
-    "model_per_mtok": {"_active": "opus-4.8", "opus-4.8": {"input": 15.0, "output": 75.0}},
+    "model_per_mtok": {
+        "_active": "gpt-5.6-terra",
+        "gpt-5.6-sol": {"input": 5.0, "output": 30.0, "vision_estimator": "openai_patch32"},
+        "gpt-5.6-terra": {"input": 2.5, "output": 15.0, "vision_estimator": "openai_patch32"},
+        "gpt-5.6-luna": {"input": 1.0, "output": 6.0, "vision_estimator": "openai_patch32"},
+        "opus-4.8": {"input": 15.0, "output": 75.0,
+                     "vision_estimator": "claude_pixels_750"},
+    },
     "frame": {"target_width": 512},
 }
 
@@ -203,14 +213,19 @@ def adaptive_frames(duration_s: float) -> int:
     return max(1, min(n, 100, hard_cap))
 
 
-def per_frame_tokens(width: int, height: int, target_w: int) -> int:
-    """Claude vision tokens ~= (w*h)/750. Frames are downscaled to target_w before reading."""
+def per_frame_tokens(width: int, height: int, target_w: int,
+                     estimator: str = "claude_pixels_750") -> int:
+    """Estimate one downscaled frame using the selected model family's vision tokenizer."""
     if width and height:
         h = round(target_w * height / width)
     else:
         h = round(target_w * 9 / 16)         # assume 16:9 when resolution is unknown
     h += h % 2                                # ffmpeg scale=-2 keeps height even
-    return math.ceil(target_w * h / 750)
+    if estimator == "openai_patch32":
+        return math.ceil(target_w / 32) * math.ceil(h / 32)
+    if estimator == "claude_pixels_750":
+        return math.ceil(target_w * h / 750)
+    raise ValueError(f"unknown vision estimator: {estimator}")
 
 
 def _have_local_backend(backend: str) -> bool:
@@ -221,39 +236,94 @@ def _have_local_backend(backend: str) -> bool:
     return True
 
 
+def _backend_chain(backend: str) -> list[str]:
+    return [b.strip() for b in backend.split(",") if b.strip()] or [backend]
+
+
+def _agent_rate(pr: dict[str, Any], agent_model: str | None) -> tuple[str, dict[str, Any], str]:
+    rates = pr["model_per_mtok"]
+    selected = agent_model or rates.get("_active")
+    if not selected or selected not in rates or selected == "_active":
+        choices = ", ".join(sorted(k for k in rates if k != "_active"))
+        raise ValueError(f"unknown agent model '{selected}'. Available: {choices}")
+    rate = rates[selected]
+    estimator = rate.get("vision_estimator") or (
+        "openai_patch32" if selected.startswith("gpt-5.6-") else "claude_pixels_750")
+    return selected, rate, estimator
+
+
+def _requested_whisper_model(profile: str, model_size: str | None = None) -> tuple[str, str | None]:
+    cfg_model, cfg_root = _whisper_settings()
+    requested = model_size or (_WHISPER_THOROUGH_DEFAULT if profile == "thorough"
+                               and cfg_model == _WHISPER_DEFAULT else cfg_model)
+    return requested, cfg_root
+
+
+def _model_available_locally(model: str, download_root: str | None = None) -> bool:
+    """Check a faster-whisper model without contacting Hugging Face."""
+    if Path(model).exists():
+        return True
+    try:
+        from huggingface_hub import snapshot_download
+        repo_id = model if "/" in model else f"Systran/faster-whisper-{model}"
+        snapshot_download(repo_id, cache_dir=download_root, local_files_only=True)
+        return True
+    except Exception:
+        return False
+
+
+def _model_download_info(want_audio: bool, chain: list[str], sidecar: str | None,
+                         profile: str) -> dict[str, Any]:
+    if not want_audio or sidecar or not any(b in ("faster-whisper", "local") for b in chain):
+        return {"status": "not_applicable", "model": None}
+    requested, root = _requested_whisper_model(profile)
+    if not _have_local_backend("faster-whisper"):
+        return {"status": "dependency_missing", "model": requested}
+    status = "cached" if _model_available_locally(requested, root) else "required"
+    return {"status": status, "model": requested}
+
+
 def estimate(inp: str, frames: int | None = None, backend: str = "captions",
              out_words: int = 600, tier: str = "both",
-             pr: dict[str, Any] | None = None) -> dict[str, Any]:
+             pr: dict[str, Any] | None = None,
+             transcribe_mode: str = "auto",
+             agent_model: str | None = None) -> dict[str, Any]:
     pr = pr or load_pricing()
     info = probe(inp)
     dur = info["duration_s"] or 0.0
     dur_min = dur / 60.0
     want_frames = tier in ("visual", "both")
     want_audio = tier in ("audio", "both")
-    primary = backend.split(",")[0].strip() if backend else backend   # a chain is priced by its first hop
+    chain = _backend_chain(backend) if backend else [backend]
 
     n = frames if frames else adaptive_frames(dur)
     target_w = int(pr.get("frame", {}).get("target_width", 512))
-    pft = per_frame_tokens(info.get("width", 0), info.get("height", 0), target_w)
+    selected_model, model_rate, vision_estimator = _agent_rate(pr, agent_model)
+    pft = per_frame_tokens(info.get("width", 0), info.get("height", 0), target_w,
+                           vision_estimator)
 
     frames_tokens = n * pft if want_frames else 0
     transcript_tokens = round(dur_min * 200) if want_audio else 0   # ~150 wpm * 1.33 tok/word
     output_tokens = round(out_words * 1.33)
 
-    rate = pr["transcription_per_min"].get(primary, 0.0) if want_audio else 0.0
+    rates = [pr["transcription_per_min"].get(b, 0.0) for b in chain] if want_audio else []
+    rate = max(rates) if rates else 0.0
     transcription_usd = round(dur_min * rate, 4)
 
-    mrates = pr["model_per_mtok"]
-    active = mrates.get("_active")
-    m = mrates.get(active) or next((v for k, v in mrates.items() if k != "_active"),
-                                   {"input": 15.0, "output": 75.0})
     read_tokens = frames_tokens + transcript_tokens + 2000          # +overhead for the prompt
-    agent_usd = round(read_tokens / 1e6 * m["input"] + output_tokens / 1e6 * m["output"], 4)
+    agent_usd = round(read_tokens / 1e6 * model_rate["input"] +
+                      output_tokens / 1e6 * model_rate["output"], 4)
     total = round(transcription_usd + agent_usd, 4)
 
     drivers = {"frames": frames_tokens, "transcript": transcript_tokens, "output": output_tokens}
-    needs_install = want_audio and primary in ("trx", "faster-whisper", "local") \
-        and not _have_local_backend(primary) and not info.get("sidecar_transcript")
+    needs_install = want_audio and not info.get("sidecar_transcript") and any(
+        b in ("trx", "faster-whisper", "local") and not _have_local_backend(b)
+        for b in chain
+    )
+    profile = (_transcribe_profile(dur, override=transcribe_mode)
+               if want_audio and any(b in ("faster-whisper", "local") for b in chain)
+               else "none")
+    download = _model_download_info(want_audio, chain, info.get("sidecar_transcript"), profile)
     out = {
         "input": inp, "source": info["source"], "duration_s": dur, "tier": tier,
         "backend": backend if want_audio else "none",
@@ -263,6 +333,15 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
         "dominant_cost": max(drivers, key=drivers.get),
         "free": transcription_usd == 0.0,  # no out-of-pocket $ (agent tokens may still apply)
         "needs_install": needs_install,
+        "transcribe_mode": profile,
+        "agent_model": selected_model,
+        "vision_estimator": vision_estimator,
+        "cost_basis": ("API-equivalent estimate; Codex subscription usage may not be billed "
+                       "per API token" if selected_model.startswith("gpt-5.6-")
+                       else "API token estimate"),
+        "requires_cloud_approval": want_audio and any(b in CLOUD_BACKENDS for b in chain),
+        "needs_model_download": download["status"] == "required",
+        "model_download": download,
         "sidecar_transcript": info.get("sidecar_transcript"),
         "captions_available": info.get("captions_available"),
     }
@@ -276,10 +355,28 @@ def estimate(inp: str, frames: int | None = None, backend: str = "captions",
 def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = "captions",
         start: float = 0.0, end: float | None = None,
         workdir: str | None = None, pr: dict[str, Any] | None = None,
-        timestamps: str | None = None, dedup: bool = True) -> dict[str, Any]:
+        timestamps: str | None = None, dedup: bool = True,
+        transcribe_mode: str = "auto", allow_cloud: bool = False,
+        allow_model_download: bool = False) -> dict[str, Any]:
     pr = pr or load_pricing()
     info = probe(inp)
+    source_input = info["input"]
     dur = info["duration_s"] or 0.0
+    want_frames = tier in ("visual", "both")
+    want_audio = tier in ("audio", "both")
+    chain = _backend_chain(backend) if want_audio else []
+    if any(b in CLOUD_BACKENDS for b in chain) and not allow_cloud:
+        raise PermissionError(
+            "transcription backend chain contains a cloud service; review `estimate`, obtain "
+            "explicit user consent, then rerun with --allow-cloud")
+    if want_audio and any(b in ("faster-whisper", "local") for b in chain):
+        profile = _transcribe_profile(dur, override=transcribe_mode)
+        download = _model_download_info(True, chain, info.get("sidecar_transcript"), profile)
+        if download["status"] == "required" and not allow_model_download:
+            raise PermissionError(
+                f"faster-whisper model '{download['model']}' requires a one-time download; "
+                "obtain explicit user consent, then rerun with --allow-model-download, or use "
+                "--transcribe-mode fast")
     end = end if end is not None else dur
     window = max(0.1, end - start)
     n = frames if frames else adaptive_frames(window)
@@ -307,15 +404,13 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
     wd = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="readvideo_"))
     wd.mkdir(parents=True, exist_ok=True)
 
-    want_frames = tier in ("visual", "both")
-    want_audio = tier in ("audio", "both")
-
     # Acquire the media file only when we actually need pixels or non-caption audio.
     media: str | None = None
     need_media = want_frames or (want_audio and backend != "captions"
                                  and not info.get("sidecar_transcript"))
     if need_media:
-        media = _download(inp, wd) if info["source"] == "url" else str(Path(inp).resolve())
+        media = (_download(source_input, wd) if info["source"] == "url"
+                 else str(Path(source_input).resolve()))
 
     result: dict[str, Any] = {"workdir": str(wd), "tier": tier,
                               "backend": backend if want_audio else "none",
@@ -325,7 +420,8 @@ def run(inp: str, tier: str = "both", frames: int | None = None, backend: str = 
             media, wd, n, start, window,
             int(pr.get("frame", {}).get("target_width", 512)), dedup=dedup, pins=pins)
     if want_audio:
-        tpath, text = _transcribe(inp, info, media, wd, backend)
+        tpath, text = _transcribe(source_input, info, media, wd, backend, transcribe_mode,
+                                  allow_model_download)
         result["transcript"] = tpath
         result["transcript_chars"] = len(text)
     (wd / "manifest.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -538,7 +634,8 @@ def _dedupe_jobs(jobs: list[tuple[float, Path, bool]], thumbs: list[bytes],
 
 # --------------------------------------------------------------------------- transcription
 def _transcribe(orig: str, info: dict[str, Any], media: str | None,
-                wd: Path, backend: str) -> tuple[str, str]:
+                wd: Path, backend: str, transcribe_mode: str = "auto",
+                allow_model_download: bool = False) -> tuple[str, str]:
     # A sidecar transcript is free and beats any backend, so it short-circuits the whole chain.
     if info.get("sidecar_transcript"):
         return _save_transcript(wd, _read_sidecar(info["sidecar_transcript"]))
@@ -546,13 +643,15 @@ def _transcribe(orig: str, info: dict[str, Any], media: str | None,
     # on any failure — out of credits, rate limit, missing key, not installed. Lets you spend a
     # limited/cheaper key first and fall back to another without re-running. A single backend is just a
     # one-element chain. (Audio is extracted once and reused across hops, so a fallback is cheap.)
-    chain = [b.strip() for b in backend.split(",") if b.strip()] or [backend]
+    chain = _backend_chain(backend)
     if len(chain) == 1:
-        return _transcribe_one(orig, info, media, wd, chain[0])
+        return _transcribe_one(orig, info, media, wd, chain[0], transcribe_mode,
+                               allow_model_download)
     errors: list[str] = []
     for b in chain:
         try:
-            return _transcribe_one(orig, info, media, wd, b)
+            return _transcribe_one(orig, info, media, wd, b, transcribe_mode,
+                                   allow_model_download)
         except Exception as ex:
             errors.append(f"{b}: {type(ex).__name__}: {str(ex)[:140]}")
             print(f"[read-video] backend '{b}' failed -> falling back to next in chain. {errors[-1]}",
@@ -561,7 +660,8 @@ def _transcribe(orig: str, info: dict[str, Any], media: str | None,
 
 
 def _transcribe_one(orig: str, info: dict[str, Any], media: str | None,
-                    wd: Path, backend: str) -> tuple[str, str]:
+                    wd: Path, backend: str, transcribe_mode: str = "auto",
+                    allow_model_download: bool = False) -> tuple[str, str]:
     if backend == "captions" and info["source"] == "url":
         text = _fetch_captions(orig, wd)
         if text:
@@ -574,7 +674,9 @@ def _transcribe_one(orig: str, info: dict[str, Any], media: str | None,
     if backend in ("faster-whisper", "local") and _have("faster_whisper"):
         # faster-whisper decodes audio itself (PyAV/ffmpeg), so hand it the media directly instead of
         # paying for a separate lossy mp3 pass — that pass exists only to fit the API upload cap.
-        return _save_transcript(wd, _faster_whisper(media or orig))
+        return _save_transcript(wd, _faster_whisper(media or orig, duration_s=info.get("duration_s"),
+                                                   transcribe_mode=transcribe_mode,
+                                                   allow_model_download=allow_model_download))
     if backend in BACKEND_API:
         return _save_transcript(wd, _api_transcribe(backend, _to_audio(media or orig, wd)))
     if backend == "gemini":
@@ -692,6 +794,30 @@ def _whisper_settings() -> tuple[str, str | None]:
     return model, root
 
 
+def _transcribe_threshold() -> float:
+    raw = (os.environ.get("READ_VIDEO_TRANSCRIPTION_THOROUGH_THRESHOLD_S") or
+           load_workspace().get("transcription_thorough_threshold_s"))
+    if raw is None:
+        return _TRANSCRIBE_THOROUGH_THRESHOLD_S
+    try:
+        threshold = float(raw)
+    except (TypeError, ValueError):
+        return _TRANSCRIBE_THOROUGH_THRESHOLD_S
+    return threshold if threshold > 0 else _TRANSCRIBE_THOROUGH_THRESHOLD_S
+
+
+def _transcribe_profile(duration_s: float | None, threshold_s: float | None = None,
+                        override: str | None = "auto") -> str:
+    if override in ("fast", "thorough"):
+        return override
+    if override not in (None, "auto"):
+        raise ValueError("--transcribe-mode must be auto, fast, or thorough")
+    if duration_s is None or duration_s <= 0:
+        return "fast"
+    threshold = threshold_s if threshold_s is not None else _transcribe_threshold()
+    return "thorough" if duration_s > threshold else "fast"
+
+
 def _new_whisper(size: str, download_root: str | None, offline: bool):
     from faster_whisper import WhisperModel
     # offline (local_files_only) skips the HuggingFace revision HEAD, which fails on locked-down
@@ -701,9 +827,11 @@ def _new_whisper(size: str, download_root: str | None, offline: bool):
 
 
 def _faster_whisper(audio: str, model_size: str | None = None,
-                    download_root: str | None = None) -> str:
-    cfg_model, cfg_root = _whisper_settings()
-    requested = model_size or cfg_model
+                    download_root: str | None = None, duration_s: float | None = None,
+                    transcribe_mode: str = "auto",
+                    allow_model_download: bool = False) -> str:
+    profile = _transcribe_profile(duration_s, override=transcribe_mode)
+    requested, cfg_root = _requested_whisper_model(profile, model_size)
     download_root = download_root or cfg_root
     is_path = Path(requested).exists()                    # a pre-downloaded model dir is used verbatim
     candidates = [requested] if is_path else [requested] + [m for m in _WHISPER_FALLBACKS if m != requested]
@@ -717,6 +845,10 @@ def _faster_whisper(audio: str, model_size: str | None = None,
         except Exception as ex:
             errors.append(f"{size} offline: {type(ex).__name__}: {str(ex)[:90]}")
         if i == 0 and not is_path:                        # only download the *requested* size, not fallbacks
+            if not allow_model_download:
+                raise RuntimeError(
+                    f"faster-whisper model '{requested}' is not cached; review `estimate`, obtain "
+                    "explicit user consent, then rerun with --allow-model-download")
             for attempt in range(3):
                 try:
                     model, used = _new_whisper(size, download_root, False), size
@@ -748,10 +880,16 @@ def _faster_whisper(audio: str, model_size: str | None = None,
     # vad_filter skips non-speech via Silero VAD: on sparse/silent audio (e.g. a screen recording with
     # only background music) it transcribes seconds instead of minutes AND avoids Whisper hallucinating
     # text over silence. The bundled VAD adds no extra dependency.
+    kwargs: dict[str, Any] = {"vad_filter": True}
+    if profile == "thorough":
+        kwargs.update({
+            "condition_on_previous_text": False,
+            "vad_parameters": {"min_silence_duration_ms": 500, "speech_pad_ms": 300},
+        })
     try:
-        segments, _ = model.transcribe(audio, vad_filter=True)
+        segments, _ = model.transcribe(audio, **kwargs)
         return "\n".join(f"[{_ts(s.start)}] {s.text.strip()}" for s in segments)
-    except (TypeError, ValueError):                # older faster-whisper without VAD support
+    except (TypeError, ValueError):                # older faster-whisper without VAD/VAD-params support
         segments, _ = model.transcribe(audio)
         return "\n".join(f"[{_ts(s.start)}] {s.text.strip()}" for s in segments)
 
@@ -929,6 +1067,7 @@ def _fmt_estimate(o: dict[str, Any]) -> str:
     out = [
         f"input: {o['input']}  ({o['source']}, {o['duration_s']}s)",
         f"tier={o['tier']}  backend={o['backend']}  frames={o['frames']}",
+        f"agent={o['agent_model']}  vision={o['vision_estimator']}",
         f"  frames tokens:     {t['frames']:>8}",
         f"  transcript tokens: {t['transcript']:>8}",
         f"  output tokens:     {t['output']:>8}",
@@ -936,9 +1075,14 @@ def _fmt_estimate(o: dict[str, Any]) -> str:
         f"  transcription: ${c['transcription']:.4f}",
         f"  agent tokens:  ${c['agent']:.4f}",
         f"  TOTAL:         ${c['total']:.4f}   (dominant: {o['dominant_cost']})",
+        f"  basis: {o['cost_basis']}",
     ]
     if o.get("needs_install"):
         out.append("  NOTE: chosen backend needs a one-time install before it can run")
+    if o.get("needs_model_download"):
+        out.append(f"  APPROVAL: one-time model download required ({o['model_download']['model']})")
+    if o.get("requires_cloud_approval"):
+        out.append("  APPROVAL: cloud audio processing requires explicit user consent")
     return "\n".join(out)
 
 
@@ -962,6 +1106,10 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--backend", default="captions")
     e.add_argument("--out-words", type=int, default=600)
     e.add_argument("--tier", default="both", choices=["visual", "audio", "both"])
+    e.add_argument("--transcribe-mode", default="auto", choices=["auto", "fast", "thorough"],
+                   help="faster-whisper profile override (default: route by duration)")
+    e.add_argument("--agent-model", default="gpt-5.6-terra",
+                   help="agent/API rate preset used for token-cost estimation")
 
     r = sub.add_parser("run", help="extract frames (+transcript) into a workdir")
     r.add_argument("input")
@@ -974,6 +1122,12 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--no-dedup", action="store_true",
                    help="keep every sampled frame (skip the near-duplicate drop)")
     r.add_argument("--timestamps", help="comma-separated SS/MM:SS/HH:MM:SS pins, e.g. 90,05:30")
+    r.add_argument("--transcribe-mode", default="auto", choices=["auto", "fast", "thorough"],
+                   help="faster-whisper profile override (default: route by duration)")
+    r.add_argument("--allow-cloud", action="store_true",
+                   help="confirm explicit consent to send audio to a cloud transcription backend")
+    r.add_argument("--allow-model-download", action="store_true",
+                   help="confirm explicit consent for a one-time faster-whisper model download")
 
     for sp in (p, e, r):
         sp.add_argument("--human", action="store_true", help="readable output instead of JSON")
@@ -983,10 +1137,14 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd == "probe":
             _emit(probe(a.input), a.human)
         elif a.cmd == "estimate":
-            _emit(estimate(a.input, a.frames, a.backend, a.out_words, a.tier), a.human)
+            _emit(estimate(a.input, a.frames, a.backend, a.out_words, a.tier,
+                           transcribe_mode=a.transcribe_mode,
+                           agent_model=a.agent_model), a.human)
         elif a.cmd == "run":
             _emit(run(a.input, a.tier, a.frames, a.backend, a.start, a.end, a.workdir,
-                      timestamps=a.timestamps, dedup=not a.no_dedup), a.human)
+                       timestamps=a.timestamps, dedup=not a.no_dedup,
+                       transcribe_mode=a.transcribe_mode, allow_cloud=a.allow_cloud,
+                       allow_model_download=a.allow_model_download), a.human)
     except Exception as ex:                       # surface as JSON so the agent can react
         print(json.dumps({"error": str(ex)}))
         return 1

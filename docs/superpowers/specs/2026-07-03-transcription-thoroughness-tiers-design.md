@@ -1,10 +1,7 @@
 # Transcription Thoroughness Tiers — Design
 
 **Date:** 2026-07-03
-**Status:** Approved, **not implemented**. Parked as future work — no code, no spec-review
-implementation cycle has been run against this doc yet. Written so the approved design isn't
-lost; do not treat this as done until a `writing-plans` → `subagent-driven-development` pass has
-actually shipped it.
+**Status:** Implemented 2026-07-17 on `codex-fix-workspace-run-resolution`. Kept here as the approved design record and acceptance checklist.
 **Scope:** `_faster_whisper()` in `skill/scripts/video.py` only. No other backend, no frame-side
 changes.
 

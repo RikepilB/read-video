@@ -11,15 +11,45 @@ isn't enough.
 
 ## Current state
 
-All previously-shipped work is merged to `main` and pushed to `origin/main` (through commit
-`1f8dacc`), 79/79 tests passing. Threads A/C/D/E complete. Thread F (transcription thoroughness
-tiers) has an **approved but unimplemented** spec, still parked. `docs/ROADMAP.md` (committed) now
-also has a sharpened Phase 2.5 (YouTube capture-adapter, next up) and 2.6 (Facebook, unscoped), a
-new `docs/decisions.md` ADR log (4 entries), and a parked, not-authorized follower-management-
-assistant idea. Repo is public, OSS-scaffolded (LICENSE/CONTRIBUTING/PR+issue templates — only
-`CODE_OF_CONDUCT.md` missing), with 5 GitHub issues total (#1 now closed, #2–#5 open).
+OpenAI Build Week implementation is present, uncommitted, on `codex/build-week-read-video`.
+The CLI now has adaptive local transcription, estimate-time model-download status, explicit
+cloud/model consent flags, conservative backend-chain gating, GPT-5.6 Sol/Terra/Luna pricing,
+32×32 patch estimation, a deterministic key-free fixture, and Build Week/submission docs. Fresh
+verification: `103 passed`, Python compilation green, real fixture probe→estimate→run green, and
+the blocked-cloud smoke created no converted audio. `.env.example` is now unignored.
 
-**This session** (2026-07-09-mega-request-triage) triaged a huge multi-part `/gsd-ship` request:
+Release is **not ready to install or submit**: `skillspector scan skill --no-llm` returned
+`100/100 CRITICAL — DO NOT INSTALL`, chiefly because API keys intentionally flow into authenticated
+cloud transcription requests. Required human work also remains: review that finding, compare
+fast/thorough on 2–3 original >45s videos, authorize dated commits, clean-clone test, `/feedback`,
+record/upload the public demo, and finish Devpost. No commits or pushes occurred. Full detail:
+`docs/handoff/2026-07-17-openai-build-week/HANDOFF.md`.
+
+## Previous state — 2026-07-15 (superseded)
+
+All previously-shipped work is merged to `main` and pushed to `origin/main` (through commit
+`1f8dacc`), 79/79 tests passing (still green as of 2026-07-15). Threads A/C/D/E complete. Thread F
+(transcription thoroughness tiers) has an **approved but unimplemented** spec, still parked.
+`docs/ROADMAP.md` (committed) has a sharpened Phase 2.5 (YouTube capture-adapter, next up, no code
+yet) and 2.6 (Facebook, unscoped), a `docs/decisions.md` ADR log (4 entries), and a parked,
+not-authorized follower-management-assistant idea. Repo is public, OSS-scaffolded
+(LICENSE/CONTRIBUTING/PR+issue templates — only `CODE_OF_CONDUCT.md` missing), with 4 GitHub
+issues open (#2 bug, #3 Thread F, #4 note-quality spot-check, #5 Phase 0 kickoff). Untracked
+`.codex/` dir sitting in the working tree, uncommitted and not gitignored — unexplained, worth a
+look next time.
+
+**This session** (2026-07-15-deep-catch-up) was a read-only `deep-catch-up` orientation — no code
+changes. Delivered the user a full briefing on: what read-video is/does, the ROADMAP's
+already-captured feature vision (Phases 0-6 + parked follower-mgmt idea), an honest startup/moat
+read (thin wrapper over ffmpeg/yt-dlp/whisper — the real differentiation is cost-gate+privacy+
+agent-native UX, not the underlying tech; Phase 6 SaaS is explicitly the riskiest, least-validated,
+legally-gated track per the ROADMAP's own framing, not proven demand), and scalability on two axes
+(technical: no billing/multi-tenancy yet, Phase 0 capture/media interfaces not yet extracted;
+legal/business: ToS-at-scale is the real ceiling, Phase 6.4 gate). No direction chosen yet — user
+was offered YouTube-adapter planning, SaaS/legal feasibility research, or fixing issue #2 as next
+moves. Full detail in `docs/handoff/2026-07-15-deep-catch-up/HANDOFF.md`.
+
+**Prior session** (2026-07-09-mega-request-triage) triaged a huge multi-part `/gsd-ship` request:
 confirmed most of it (repo/OSS scaffold, issues) was already done in a prior session; committed +
 pushed 6 pending doc/command files; logged the follower-management-assistant idea as parked with
 3 learn-from-only reference repos; then ran `grill-with-docs` to sharpen the "ideate 6-platform
@@ -50,6 +80,16 @@ Phase 0 kickoff) — all still open.
 ## Session index
 _(newest first)_
 
+- **2026-07-17-openai-build-week** — implemented the approved Developer Tools extension on
+  `codex/build-week-read-video`: adaptive transcription, model/cloud consent gates, GPT-5.6
+  pricing/vision accounting, fixture, tests, README, and submission runbook; `103 passed` and real
+  smoke flow green, but SkillSpector returned CRITICAL/DO NOT INSTALL and human submission steps
+  remain. No commit/push.
+- **2026-07-15-deep-catch-up** — read-only orientation session (`deep-catch-up` skill), no code
+  changes: delivered a full briefing covering read-video's capacities, the ROADMAP's captured
+  feature vision, an honest startup/moat assessment, and technical+legal scalability read; no
+  direction chosen, three next-move options offered (YouTube adapter plan / SaaS legal feasibility
+  research / issue #2 fix).
 - **2026-07-09-mega-request-triage** — triaged a mixed-scope `/gsd-ship` mega-request (found
   repo/OSS-scaffold/issues already done; committed+pushed 6 pending files; closed issue #1; logged
   a parked follower-management-assistant idea with 3 reference repos); then ran `grill-with-docs`
