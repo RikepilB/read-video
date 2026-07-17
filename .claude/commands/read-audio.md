@@ -34,12 +34,17 @@ For each input path:
 3. Run `python scripts/video.py estimate "<path>" --tier <tier> --backend <backend>`.
    - **Cost gate.** If `needs_install: true`: stop for this file, tell the user what's missing
      (see `skill/references/backends.md`), don't install anything yourself, move to the next file.
+   - If `needs_model_download: true` (the duration-routed whisper model — e.g. `thorough` mode's
+     `medium` — isn't cached locally): tell the user a one-time model download is required, and
+     get explicit go-ahead before proceeding — never download a model silently. Only pass
+     `--allow-model-download` on the `run` call below after that go-ahead.
    - If `free: false` (a paid backend was explicitly requested): tell the user the estimated
      `cost_usd.total` and get explicit go-ahead before proceeding with that file — never spend
      real money silently, even on a single personal file.
    - Otherwise (expected case: local/free) continue.
 4. Run `python scripts/video.py run "<path>" --tier <tier> --backend <backend> --workdir <a temp
-   dir, e.g. under the system temp directory>`.
+   dir, e.g. under the system temp directory>`, adding `--allow-model-download` only if the user
+   approved it in step 3.
 5. `Read` the resulting `transcript.txt` (and `frames/*.jpg` in filename order if `--tier both`).
 6. Write a note — synthesize a synopsis and action items yourself from the actual transcript
    content, the same way `ig-analyze-subagent` does; this is a semantic read, not a template fill.
@@ -66,10 +71,11 @@ For each input path:
    ...
    ```
 
-   If the recording is long enough that this project's known local-whisper completeness gap
-   applies (clips over ~45s can drop/garble words — see the parked "transcription thoroughness
-   tiers" spec), add a one-line flag in Notes & Action Items naming the noisy timestamp ranges
-   rather than silently presenting a possibly-incomplete transcript as clean.
+   Clips over ~45s already get `faster-whisper`'s `thorough` profile automatically (tuned VAD,
+   no previous-text conditioning — see `skill/references/backends.md`); if the transcript still
+   has visibly noisy or garbled stretches, add a one-line flag in Notes & Action Items naming
+   those timestamp ranges rather than silently presenting a possibly-incomplete transcript as
+   clean.
 7. Delete the temp workdir from step 4.
 
 ## 3. Final report

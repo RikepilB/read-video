@@ -46,11 +46,14 @@ folders.
   yourself risks a concurrent-write race if another wave member finishes at the same moment.
 - **Respect the per-video cost gate even though the batch was pre-approved.** The batch-level
   approval covers the expected case (local, free transcription). Force `--backend faster-whisper`
-  on `estimate` and check its `free`/`needs_install` flags before calling `run`. If
-  `needs_install: true` for this specific video (e.g. the pinned whisper model isn't cached), do
-  **not** install anything or fall back to a paid backend on your own authority — write a skip
-  marker noting this and return `{"shortcode": "<code>", "skipped": true, "reason":
-  "needs_install"}` so the controller can flag it for the user.
+  on `estimate` and check its `free`/`needs_install`/`needs_model_download` flags before calling
+  `run`. If `needs_install: true` (dependency not installed) or `needs_model_download: true` (the
+  duration-routed whisper model — e.g. `thorough` mode's `medium` — isn't cached locally for this
+  specific video), do **not** install anything, download a model, or fall back to a paid backend
+  on your own authority — write a skip marker noting which one and return
+  `{"shortcode": "<code>", "skipped": true, "reason": "needs_install"}` or
+  `{"shortcode": "<code>", "skipped": true, "reason": "needs_model_download"}` so the controller
+  can flag it for the user. Never pass `--allow-model-download` yourself.
 - **Cookies via explicit export, not inheritance.** Every `Bash` call that runs `video.py` must
   `export READ_VIDEO_YTDLP_COOKIES="<cookies_path>"` (or the PowerShell equivalent) in the *same*
   command — a fresh subagent shell does not inherit a Windows user-level env var set via `setx` in
@@ -75,7 +78,10 @@ folders.
    `skill_dir`, same cookie export). Parse the JSON.
    - If `needs_install` is `true`: write the skip-marker noting `needs_install`, return the
      `needs_install` skip result (see Constraints). Do not proceed.
-   - Otherwise (expected case: `free: true`, `needs_install: false`) continue.
+   - If `needs_model_download` is `true`: write the skip-marker noting `needs_model_download`,
+     return the `needs_model_download` skip result (see Constraints). Do not proceed.
+   - Otherwise (expected case: `free: true`, `needs_install: false`,
+     `needs_model_download: false`) continue.
 4. Run `python scripts/video.py run "<url>" --tier both --backend faster-whisper --workdir
    <a temp dir you choose, e.g. under the system temp directory>`. This writes `frames/*.jpg`,
    `transcript.txt`, and `manifest.json` (frame→timestamp map) into that workdir.
