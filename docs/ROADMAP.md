@@ -80,12 +80,14 @@ there a Claude-in-Chrome-drivable UI or a real API alternative.
 - **2.3 LinkedIn saved posts**
 - **2.4 Substack saved/subscribed posts** — likely API/RSS-based, not browser automation;
   Substack has no bookmark-grid UI to drive the way IG/TikTok do.
-- **2.5 YouTube Watch Later — up next (sharpened 2026-07-09, see `docs/decisions.md`).** Read
-  axis already works (`video.py`/`yt-dlp` take a YouTube URL directly) — this milestone is capture
-  only. Official **YouTube Data API v3** (OAuth, not browser automation), source = **Watch Later**,
-  captured videos removed from Watch Later as the "captured" marker (mirrors IG's unsave pattern),
+- **2.5 YouTube private-playlist capture - up next (sharpened 2026-07-09, corrected 2026-07-17;
+  see `docs/decisions.md`).** Read axis already works (`video.py`/`yt-dlp` take a YouTube URL
+  directly) - this milestone is capture only. Official **YouTube Data API v3** (OAuth, not browser
+  automation), source = a user-owned private queue playlist such as `Read Video Queue` because
+  current Data API docs report Watch Later playlist items as inaccessible; captured videos are
+  removed from that queue playlist as the "captured" marker (mirrors IG's unsave pattern), with
   content-keyed dedup against the vault on top (unchanged from `/ig-pipeline`). Ships as a second
-  one-off adapter, same discipline as Instagram's — **not** built against a pre-designed interface.
+  one-off adapter, same discipline as Instagram's - **not** built against a pre-designed interface.
 - **2.6 Facebook** — raised 2026-07-09, not yet scoped. Facebook's saved-items API is limited/
   largely deprecated and its automation ToS is stricter than IG/YouTube — needs its own
   feasibility+ToS pass before it can even get a milestone number that means anything.

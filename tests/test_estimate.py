@@ -13,18 +13,57 @@ def patched_estimate(monkeypatch, **kw):
 
 
 def test_cost_math_regression(monkeypatch):
-    """Pins the pre-port numbers: 120s 640x360, tier=both, backend=captions."""
+    """Pins GPT-5.6 patch accounting: 512x288 becomes 16x9 patches."""
     o = patched_estimate(monkeypatch)
     assert o["frames"] == 60                       # adaptive_frames(120)
-    assert o["per_frame_tokens"] == 197            # ceil(512*288/750)
-    assert o["tokens"]["frames"] == 60 * 197
+    assert o["per_frame_tokens"] == 144            # ceil(512/32) * ceil(288/32)
+    assert o["tokens"]["frames"] == 60 * 144
     assert o["tokens"]["transcript"] == 400        # 2 min * 200
     assert o["tokens"]["output"] == 798            # 600 words * 1.33
     assert o["cost_usd"]["transcription"] == 0.0
     assert o["free"] is True
+    assert o["agent_model"] == "gpt-5.6-terra"
+    assert o["vision_estimator"] == "openai_patch32"
+    assert "API-equivalent" in o["cost_basis"]
+
+
+def test_claude_preset_retains_pixel_estimator(monkeypatch):
+    o = patched_estimate(monkeypatch, agent_model="opus-4.8")
+    assert o["per_frame_tokens"] == 197
+    assert o["vision_estimator"] == "claude_pixels_750"
+
+
+def test_unknown_agent_model_is_rejected(monkeypatch):
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown agent model"):
+        patched_estimate(monkeypatch, agent_model="gpt-9")
 
 
 def test_estimate_notes_dedup_for_visual_tiers(monkeypatch):
     assert "dedup" in patched_estimate(monkeypatch)["note"]
     assert "dedup" in patched_estimate(monkeypatch, tier="visual")["note"]
     assert "note" not in patched_estimate(monkeypatch, tier="audio")
+
+def test_estimate_prices_most_expensive_backend_in_chain(monkeypatch):
+    o = patched_estimate(monkeypatch, tier="audio", backend="captions,openai")
+    assert o["cost_usd"]["transcription"] == 0.012
+    assert o["free"] is False
+    assert o["requires_cloud_approval"] is True
+
+
+def test_estimate_marks_missing_local_backend_anywhere_in_chain(monkeypatch):
+    monkeypatch.setattr(video, "_have_local_backend", lambda backend: False)
+    o = patched_estimate(monkeypatch, tier="audio", backend="captions,faster-whisper")
+    assert o["needs_install"] is True
+    assert o["model_download"]["status"] == "dependency_missing"
+
+
+def test_estimate_surfaces_required_thorough_model_download(monkeypatch):
+    monkeypatch.setattr(video, "_have_local_backend", lambda backend: True)
+    monkeypatch.setattr(video, "_model_available_locally", lambda model, root=None: False)
+    o = patched_estimate(monkeypatch, tier="audio", backend="faster-whisper",
+                         transcribe_mode="thorough")
+    assert o["transcribe_mode"] == "thorough"
+    assert o["needs_model_download"] is True
+    assert o["model_download"] == {"status": "required", "model": "medium"}

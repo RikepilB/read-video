@@ -13,6 +13,60 @@ so you always see the price before any work happens.
 
 ---
 
+## OpenAI Build Week 2026 — Developer Tools
+
+`read-video` is being submitted as a Codex-native, cost-aware way to turn video into grounded
+GPT-5.6 answers. The judged extension is intentionally the CLI + skill experience—there is no web
+UI, SaaS layer, OAuth adapter, or universal-capture expansion.
+
+### What existed versus what Build Week added
+
+| Before July 13 | Build Week extension started July 17 |
+|---|---|
+| Probe local files/URLs, sample frames, read sidecars/captions, and use pluggable transcription backends | Adaptive local transcription: `auto` stays fast through 45 seconds and selects a tuned `medium` thorough profile above it, with explicit overrides |
+| Generic Claude-oriented frame-token estimate and configurable model rates | GPT-5.6 Sol/Terra/Luna API-equivalent pricing plus native 32×32 patch estimation; Claude presets remain compatible |
+| Skill-level instruction to ask before paid transcription | CLI-enforced privacy boundary: any cloud backend anywhere in a fallback chain is rejected before conversion/upload without `run --allow-cloud` |
+| Local model loaded offline-first, then downloaded on demand | `estimate` reports model-cache status and `run --allow-model-download` is required before a new model download |
+| Manual local samples | Copyright-free, locally generated demo video + sidecar transcript, reproducible without keys |
+
+The last pre-event commit is `bf45369` (2026-07-09). Build Week implementation is on
+`codex/build-week-read-video`; its post–July 13 commit hash must be added here after the maintainer
+authorizes and creates the release commit. The primary Codex implementation task is
+`019f708e-5615-7f00-9a02-b0e5bc435efd`; confirm/copy the final session ID through `/feedback`
+before Devpost submission.
+
+### Install and key-free judge demo
+
+Supported: Windows 11 PowerShell, macOS/Linux Bash, Python 3.10+, and `ffmpeg`/`ffprobe` on PATH.
+`yt-dlp` is needed only for URLs; `faster-whisper` is optional for local speech transcription.
+
+```powershell
+# One-command Codex + Claude skill install from the repository root
+.\scripts\install-skill.ps1
+
+# Generate original local media and its sidecar transcript (no keys, no downloads)
+python scripts/create-demo-fixture.py
+
+# Show the GPT-5.6 cost/privacy gate, then run locally
+python skill/scripts/video.py estimate samples/build-week-demo.mp4 --tier both --backend captions --agent-model gpt-5.6-terra --human
+python skill/scripts/video.py run samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output
+
+# Privacy proof: exits before conversion or upload because --allow-cloud was not provided
+python skill/scripts/video.py run samples/build-week-demo.mp4 --tier audio --backend openai
+```
+
+Ask Codex to read the generated manifest, frames, and transcript and answer with `[MM:SS]`
+citations. Limitations: visual coverage is sampled rather than continuous; automatic thoroughness
+uses duration as a proxy for audio complexity; first-time local models require disk/network consent;
+URL support depends on `yt-dlp` and the source platform; cloud transcription sends audio only after
+explicit per-run approval.
+
+Codex/GPT-5.6 drove the probe → estimate → gate → run workflow and helped implement tests, while
+the human chose the 45-second boundary, local-first privacy policy, conservative fallback pricing,
+scope exclusions, and final submission claims. See [the submission runbook](docs/build-week-submission.md).
+
+---
+
 ## Why it exists
 
 Three problems show up the moment you try to get an AI agent to "watch" a video:

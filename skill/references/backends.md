@@ -26,6 +26,7 @@ Rates are seeded in `pricing.json` (June 2026). Update them there if a provider'
 ## Free, offline (no key)
 - **`faster-whisper`** — preferred local engine here: pure-Python wheel (CTranslate2, no PyTorch), lighter than trx. `pip install faster-whisper`. The skill calls it on CPU with `compute_type=int8`.
   - **Model size** defaults to **`small`** (≈ 484 MB) — the accuracy/size sweet spot for non-English speech (e.g. Spanish meetings); `tiny`/`base` are noticeably worse there, `medium`/`large-v3` better but slower. Override per machine via `whisper_model` in `workspace.json`, env `READ_VIDEO_WHISPER_MODEL` (a size name *or* a full path to a pre-downloaded model dir), or env `READ_VIDEO_WHISPER_DIR` (download_root / cache dir).
+  - **Thorough mode:** `auto` uses the existing fast profile through 45s, then `--transcribe-mode thorough` behavior above that threshold: it requests `medium` when the machine is otherwise using the default `small`, sets `condition_on_previous_text=False`, and tightens VAD to `min_silence_duration_ms=500` / `speech_pad_ms=300`. `estimate` reports whether `medium` is cached; pass `run --allow-model-download` only after explicit consent. Override with `--transcribe-mode fast|thorough`, `workspace.json`'s `transcription_thorough_threshold_s`, or `READ_VIDEO_TRANSCRIPTION_THOROUGH_THRESHOLD_S`.
   - **Offline-first + graceful fallback:** a cached model is loaded with `local_files_only=True`, skipping the HuggingFace revision HEAD that fails on locked-down networks (`WinError 10054`) even when every file is on disk. If the requested size isn't cached it tries one online download (with retry); if that fails it falls back to a smaller *cached* size and prints a loud `WARNING` to stderr (no silent accuracy drop). If nothing loads it errors with offline-install guidance.
   - **No network to HuggingFace?** Cache a model once on a connected machine: `python -c "from faster_whisper import WhisperModel as W; W('small')"`, then point `whisper_model` / `whisper_model_dir` at it. Throughput here is ~7× realtime on CPU (74 s clip → ~10 s).
 - **`trx`** — `crafter-station/trx` (MIT), whisper.cpp under the hood, agent-first JSON. Needs `bun`: `bun add -g @crafter/trx` then `trx init` (installs deps + downloads a Whisper model, tiny 75 MB → large 3 GB, configurable in `~/.trx/config.json`).
@@ -34,7 +35,11 @@ Both are $0 marginal — you pay only CPU time. Use them whenever the audio shou
 
 ## Paid APIs (audio is uploaded — gate first)
 Sending audio to any of these means the user's content leaves the machine and is billed per minute.
-Only ever use a paid backend **after** the cost gate is approved.
+Only ever use a paid backend **after** the cost gate is approved. Comma-separated backend chains are gated by the most expensive backend in the chain, not the first backend, because runtime may fall through after a failure.
+
+Every chain containing Groq, OpenAI, OpenAI-mini, OpenRouter, or Gemini also requires explicit
+privacy approval. `run` rejects it before media download, audio conversion, or upload unless
+`--allow-cloud` is present. An API key is not consent.
 
 The OpenAI-compatible backends (Groq / OpenAI / OpenAI-mini / OpenRouter) need **no SDK** — `video.py`
 uploads via pure-stdlib `urllib` (hand-built multipart), with a non-default User-Agent (Groq's Cloudflare
