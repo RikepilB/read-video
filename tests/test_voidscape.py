@@ -9,6 +9,15 @@ import voidscape
 from conftest import requires_ffmpeg
 
 
+def test_empty_guided_cli_shows_welcome_and_next_step(capsys):
+    assert voidscape.main([]) == 0
+
+    welcome = capsys.readouterr().out
+    assert "VOIDSCAPE" in welcome
+    assert "inspect <file-or-url>" in welcome
+    assert 'voidscape.py inspect "meeting.mp4"' in welcome
+
+
 def test_customize_previews_without_writing(tmp_path, capsys):
     config = tmp_path / "workspace.json"
 

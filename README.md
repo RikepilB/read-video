@@ -15,6 +15,10 @@ gate.
 
 ## Start here
 
+Run either installed command without arguments for a short Voidscape welcome screen and the next
+command to try. The old `read-video` entry keeps its existing command behavior; its no-command
+screen now points into the guided Voidscape flow.
+
 ### 1. Install both Voidscape and the read-video compatibility skill
 
 **Windows PowerShell**

@@ -112,6 +112,15 @@ def test_legacy_installed_facade_forwards_to_canonical_engine(tmp_path):
     assert '"manifest"' in manifest.stdout
     assert '"probe"' in manifest.stdout
 
+    welcome = subprocess.run(
+        ["python", str(legacy_cli)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert welcome.returncode == 0, welcome.stdout + welcome.stderr
+    assert "VOIDSCAPE" in welcome.stdout
+
 
 @requires_powershell
 def test_install_prints_summary_line(tmp_path):

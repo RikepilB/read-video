@@ -12,6 +12,32 @@ from typing import Any
 import video
 
 
+WELCOME = r"""
+__     ______  ________  _____ _________    ____  ______
+\ \   / / __ \/  _/ __ \/ ___// ____/   |  / __ \/ ____/
+ \ \ / / / / // // / / /\__ \,< / /   / /| | / /_/ / __/
+  \ V / /_/ // // /_/ /___/ / /| |/ /___ |/ ____/ /___
+   \_/ \____/___/_____/____/_/ |_|____/_/ |_/_/   /_____/
+
+VOIDSCAPE — LOCAL-FIRST MEDIA WORKFLOW
+
+Your private media, made legible.
+
+  inspect <file-or-url>   See what is there and choose a scope.
+  preview <file-or-url>   See cost, privacy, and dependencies.
+  read <file-or-url>      Create approved frames, transcript, and manifest.
+
+  customize               Choose local folders and defaults.
+  doctor                  Check local readiness without changing anything.
+
+Start here:
+  voidscape.py inspect "meeting.mp4"
+
+Agent workflow:
+  /voidscape <file-or-url>
+""".strip()
+
+
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE_PATH = SKILL_ROOT / "workspace.json"
 
@@ -271,6 +297,11 @@ def _add_analysis_options(parser: argparse.ArgumentParser, include_run: bool = F
 
 
 def main(argv: list[str] | None = None) -> int:
+    args_list = list(sys.argv[1:] if argv is None else argv)
+    if not args_list:
+        print(WELCOME)
+        return 0
+
     parser = argparse.ArgumentParser(prog="voidscape.py", description="guided local-first media analysis")
     commands = parser.add_subparsers(dest="command", required=True)
     inspect_parser = commands.add_parser("inspect", help="inspect source facts and recommended scope")
@@ -298,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     doctor_parser.add_argument("--config")
     doctor_parser.add_argument("--json", action="store_true")
     doctor_parser.set_defaults(handler=doctor)
-    args = parser.parse_args(argv)
+    args = parser.parse_args(args_list)
     return args.handler(args)
 
 
