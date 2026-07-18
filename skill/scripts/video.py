@@ -99,8 +99,10 @@ def load_pricing() -> dict[str, Any]:
 
 
 def load_workspace() -> dict[str, Any]:
+    configured_path = os.environ.get("VOIDSCAPE_WORKSPACE_PATH")
+    path = Path(configured_path).expanduser() if configured_path else WORKSPACE_PATH
     try:
-        return json.loads(WORKSPACE_PATH.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 

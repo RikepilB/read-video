@@ -29,8 +29,10 @@ def test_install_copies_to_both_targets(tmp_path):
     result = _run_install(claude_root, agents_root)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert (claude_root / "read-video" / "SKILL.md").exists()
-    assert (agents_root / "read-video" / "SKILL.md").exists()
+    assert (claude_root / "voidscape" / "SKILL.md").exists()
+    assert (agents_root / "voidscape" / "SKILL.md").exists()
+    assert (claude_root / "voidscape" / "scripts" / "video.py").exists()
+    assert (agents_root / "voidscape" / "scripts" / "video.py").exists()
     assert (claude_root / "read-video" / "scripts" / "video.py").exists()
     assert (agents_root / "read-video" / "scripts" / "video.py").exists()
 
@@ -42,8 +44,10 @@ def test_install_reports_copy_ok_for_both_targets(tmp_path):
 
     result = _run_install(claude_root, agents_root)
 
-    assert "RESULT claude copy OK" in result.stdout
-    assert "RESULT agents copy OK" in result.stdout
+    assert "RESULT claude voidscape copy OK" in result.stdout
+    assert "RESULT claude read-video copy OK" in result.stdout
+    assert "RESULT agents voidscape copy OK" in result.stdout
+    assert "RESULT agents read-video copy OK" in result.stdout
 
 
 @requires_powershell
@@ -82,10 +86,31 @@ def test_install_reports_verification_ok_for_both_targets(tmp_path):
 
     result = _run_install(claude_root, agents_root)
 
-    assert "RESULT claude verify:frontmatter OK" in result.stdout
-    assert "RESULT agents verify:frontmatter OK" in result.stdout
-    assert "RESULT claude verify:cli OK" in result.stdout
-    assert "RESULT agents verify:cli OK" in result.stdout
+    assert "RESULT claude voidscape verify:frontmatter OK" in result.stdout
+    assert "RESULT agents voidscape verify:frontmatter OK" in result.stdout
+    assert "RESULT claude read-video verify:cli OK" in result.stdout
+    assert "RESULT agents read-video verify:cli OK" in result.stdout
+
+
+@requires_powershell
+def test_legacy_installed_facade_forwards_to_canonical_engine(tmp_path):
+    claude_root = tmp_path / "claude_skills"
+    agents_root = tmp_path / "agents_skills"
+
+    result = _run_install(claude_root, agents_root)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    legacy_cli = claude_root / "read-video" / "scripts" / "video.py"
+    manifest = subprocess.run(
+        ["python", str(legacy_cli), "manifest", "--compact"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert manifest.returncode == 0, manifest.stdout + manifest.stderr
+    assert '"manifest"' in manifest.stdout
+    assert '"probe"' in manifest.stdout
 
 
 @requires_powershell

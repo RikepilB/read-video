@@ -1,5 +1,9 @@
 # CLI / API reference — `scripts/video.py`
 
+For the guided human path, start with [Voidscape's guide](voidscape-guide.md):
+`voidscape.py inspect → preview → read`. This page documents the stable lower-level engine used by
+existing scripts, subagents, and non-interactive automation.
+
 The engine is a single Python CLI with four subcommands. It is **agent-first**: every command prints
 **JSON** to stdout, unless you pass `--human` for a readable estimate. Existing callers retain the
 legacy JSON shape; agents can opt into a stable envelope and deterministic exit metadata.
