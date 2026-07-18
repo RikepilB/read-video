@@ -11,38 +11,32 @@ isn't enough.
 
 ## Current state
 
-**PR #7 merged; PR #8 open** (https://github.com/RikepilB/read-video/pull/8, 6 commits: AX
-protocol, landing redesign, Devpost draft, handoff updates, a cleanup that untracked `.claude/`
-from git — kept on disk, matches `main`'s own post-merge cleanup — after discarding unrelated
-cross-session contamination that had appeared in the working tree, and a portfolio-entry template
-at `docs/portfolio-entry.md`. `pytest`: 120 passed, reconfirmed after cleanup.
+**PR #7, #8, #9 all merged/open on `main`** (verified via `gh pr list` 2026-07-18): #7 and #8
+merged; #9 (`https://github.com/RikepilB/read-video/pull/9`, no-arg welcome screen for
+`voidscape`/`read-video` entry points, `pytest` 14/14 on the touched files) opened same day by a
+Claude Code session working this repo alongside Codex.
 
-`/ultraplan` was invoked to do a bigger review+prep pass; its cloud container reported **failed**
-("ExitPlanMode never reached... remote container failed to start"), but had already made real,
-substantial local changes before dying. Rather than trust or discard blindly, verified each claim
-independently: `pytest` genuinely 120 passed (was 111), read the full `skill/scripts/video.py` diff
-line-by-line, spot-checked exit-code behavior with a real command. Findings: the new agent-CLI
-protocol (`manifest`, `--envelope`/`--compact`, `{ok,data,error,meta}`, exit-code taxonomy 0-6) is
-solid and well-tested, but its "backward-compatible" claim only holds for JSON *shape* — process
-exit codes changed for ALL errors now, not just `--envelope` mode (confirmed: a missing file now
-exits `3`, not the old always-`1`). Safe here (no agent config in this repo checks exit codes) but
-worth knowing. Committed in two logical groups: `728a770` (AX protocol) and `12c775d` (landing page
-redesign + Devpost draft) — both pushed, updating PR #7.
+Devpost project `1332780` is live at `https://devpost.com/software/read-video`, entry **not
+submitted** (`submitted_at: null`). Deadline **2026-07-21 5PM PT**. Remaining gaps, tracked in
+`docs/devpost-draft.md`'s own checklist:
+1. Country field wrong on the **live Devpost form itself** (shows Chile, needs Canada/Toronto) —
+   no Devpost API/MCP access in-session, manual fix only.
+2. Description/storyboard drafted but not yet in Richard's own voice.
+3. `/feedback` session ID missing — needs Richard to resume Codex task
+   `019f708e-5615-7f00-9a02-b0e5bc435efd` and run `/feedback` there.
+4. No public <3-min YouTube demo recorded/linked yet.
+5. No thumbnail/screenshots — `docs/index.html` currently ships zero `<img>` tags; the one
+   existing `demo.gif` on disk pre-dates the Voidscape rebrand and is unused/stale.
+6. Clean-clone install test not yet run.
+7. Final submit explicitly gated on Richard's manual review + click.
 
-The landing page (`docs/index.html`) got fully redesigned by the failed run (different aesthetic —
-dark navy/blue, system fonts, still no external CDN calls). User chose to **keep the redesign**
-over the earlier customs-stencil version. `docs/devpost-draft.md`'s country field defaulted to
-Chile — wrong; corrected to **Canada (Toronto)** per the user, but the actual Devpost form field
-itself still needs updating (no Devpost connector available in this session to do it directly).
+Full execution plan (Claude-Code-doable vs Richard-only split, ordering) written to
+`C:\Users\a2021\.claude\plans\cozy-purring-crane.md` 2026-07-18.
 
-Devpost project `1332780` is populated at `https://devpost.com/software/read-video`. Updating the
-overview auto-published the standalone project page as a side effect; the OpenAI Build Week entry
-is **not submitted** (`submitted_at: null`), no final-submit action was called. Remaining before
-the 2026-07-21 5PM PT deadline: Richard's own-voice edit of the description, actual country field
-fix on Devpost itself, `/feedback` session ID, public <3-min YouTube demo, thumbnail/screenshots,
-clean-clone test, then explicit final-submit authorization. PR #7 still open, not merged. Browser
-interception/bypass stays explicitly parked outside this scope. Full detail:
-`docs/handoff/2026-07-17-devpost-draft/HANDOFF.md`.
+Note: the prior version of this `## Current state` block had gone through repeated UTF-8/CP1252
+mis-decoding of its em dashes (185 lines / 192KB working copy vs. 163 lines / 12.8KB on GitHub) —
+restored from `HEAD` and rewritten clean here. Root cause likely a tool writing this file without
+`-Encoding utf8` on Windows; not fixed at the tool level, just flagging so it doesn't recur silently.
 
 ## Previous state — 2026-07-15 (superseded)
 
@@ -99,6 +93,12 @@ Phase 0 kickoff) — all still open.
 ## Session index
 _(newest first)_
 
+- **2026-07-18-claude-devpost-punchlist** (no dated folder — cross-tool session, see
+  `C:\Users\a2021\.claude\plans\cozy-purring-crane.md` for the full plan) — Claude Code session
+  working alongside Codex on this repo: shipped the no-arg welcome-screen diff (PR #9), fixed the
+  repeated UTF-8/CP1252 mojibake corruption in this file's `## Current state`, verified real PR
+  state via `gh pr list` (handoff had gone stale), and built a 6-phase punch list for closing the
+  7 remaining Devpost gaps before the 2026-07-21 deadline.
 - **2026-07-17-devpost-draft** — `/ultraplan` cloud run added agent CLI reflection/envelopes/compact
   JSON/exit taxonomy via TDD (111→120 passed), saved the Devpost overview/links, redesigned the
   landing page, and drafted `docs/devpost-draft.md` — then the cloud container reported failed
