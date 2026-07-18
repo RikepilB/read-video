@@ -1,12 +1,19 @@
 # CLI / API reference — `scripts/video.py`
 
-The engine is a single Python CLI with three subcommands. It is **agent-first**: every command prints
-**JSON** to stdout (so Claude can parse it), unless you pass `--human`. Errors are emitted as
-`{"error": "..."}` with exit code `1`, so the agent can react instead of crashing.
+The engine is a single Python CLI with four subcommands. It is **agent-first**: every command prints
+**JSON** to stdout, unless you pass `--human` for a readable estimate. Existing callers retain the
+legacy JSON shape; agents can opt into a stable envelope and deterministic exit metadata.
 
 ```
+python scripts/video.py manifest [--compact]
 python scripts/video.py <probe|estimate|run> <input> [flags]
 ```
+
+For command discovery, run `python scripts/video.py manifest --compact`. Every operational command
+accepts `--envelope` for `{ok,data,error,meta}` and `--compact` for single-line token-efficient
+JSON. Exit codes are `0` success, `1` unexpected error, `2` usage error, `3` input error, `4`
+approval required, `5` dependency error, and `6` operation failure. Envelope errors repeat the
+numeric value in `error.exit_code` and include `error.code` plus `error.retryable`.
 
 `<input>` is a local path, a video URL, or — when a workspace is configured — a **bare filename** that
 resolves against `inbox_dir`.

@@ -31,6 +31,15 @@ python scripts/video.py run      <input> [--tier ...] [--backend ...] [--frames 
 `<input>` is a local path or an http(s) URL. Output is JSON (parse it); add `--human` to `estimate`
 for a readable cost table. Run from the skill directory so `pricing.json` resolves.
 
+### Agent machine protocol
+
+Use `python scripts/video.py manifest --compact` once when command discovery is needed. For normal
+agent execution, append `--envelope --compact`: every success or failure then uses
+`{ok,data,error,meta}` with a stable protocol version. On failure, inspect `error.code`,
+`error.exit_code`, and `error.retryable`; never parse prose to decide whether to retry. Existing
+callers may omit these flags and keep the legacy top-level JSON shape. Commands are non-interactive
+and never launch an editor or confirmation prompt—the explicit consent flags are the only gates.
+
 ## Workspace (optional, configured per machine)
 
 If `workspace.json` exists in the skill dir, it points at the user's media workspace:

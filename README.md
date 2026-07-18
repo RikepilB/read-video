@@ -90,6 +90,8 @@ full cost breakdown at a **gate** before spending, and it defaults to **free, lo
 - **Two channels, pick what's worth it** — `--tier visual` (frames), `audio` (transcript), or `both`.
 - **Cost gate** — `estimate` prices transcription **$** vs agent-token **$** separately, names the dominant
   driver, and flags any out-of-pocket spend or one-time install *before* it happens.
+- **Agent-native CLI contract** — `manifest` reflects commands and flags; `--envelope --compact`
+  provides token-efficient `{ok,data,error,meta}` output with deterministic error metadata.
 - **Pluggable transcription backends**, cheapest-and-most-private first:
   sidecar `.srt`/`.vtt` → URL captions → local `faster-whisper`/`trx` → Groq → OpenAI → OpenRouter → Gemini.
 - **No SDKs for the paid paths** — uploads are pure-stdlib `urllib` (hand-built multipart), so Groq/OpenAI
@@ -179,8 +181,14 @@ cd ~/.claude/skills/read-video
 # 1. What is this?
 python scripts/video.py probe "clip.mp4"
 
+# Optional: one-call command/flag discovery for agents
+python scripts/video.py manifest --compact
+
 # 2. What would it cost to summarize it?  (the gate)
 python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper --human
+
+# Machine-first equivalent (stable envelope + compact JSON)
+python scripts/video.py estimate "clip.mp4" --tier both --backend faster-whisper --envelope --compact
 
 # 3. Run it — extract frames + transcript into a workdir for Claude to Read
 python scripts/video.py run "clip.mp4" --tier both --backend faster-whisper
