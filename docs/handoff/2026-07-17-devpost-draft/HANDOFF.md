@@ -1,0 +1,79 @@
+# Session Handoff — 2026-07-17-devpost-draft
+
+## Goal
+Harden `read-video`'s CLI/skill for Agent Experience and create the OpenAI Build Week Devpost
+project draft without making the final hackathon submission.
+
+## What was done
+- Read the official live submission requirements, judging criteria, key dates, and July 17
+  announcement through the authenticated Devpost connector.
+- Kept the suggested request/response interception or “bypass” package out of scope; used
+  `agent-browser` only for normal form discovery and moved to the authenticated Devpost connector
+  when the headed session could not retain authentication.
+- Added an opt-in, backward-compatible agent CLI protocol: `manifest`, `--envelope`, `--compact`,
+  `{ok,data,error,meta}`, protocol version `1.0`, and exit codes 0–6.
+- Added conservative error retryability: corrupt media is a non-retryable input error; explicit
+  transient/rate-limit markers are retryable operation failures.
+- Added nine subprocess/unit/documentation tests via red→green TDD. Full suite is now **120 passed**.
+- Ran a real fixture flow through manifest → probe → estimate → run; cloud rejection returned exit
+  4 and created no audio; malformed usage returned machine-readable exit 2.
+- Updated `SKILL.md`, README, and CLI reference for the agent protocol; created
+  `docs/devpost-draft.md` with overview copy, custom-field drafts, judge test commands, and missing
+  final actions.
+- Updated Devpost project `1332780`: name `read-video`, tagline, overview description, technologies,
+  public repo, and landing page. Devpost automatically set the project page to `published` at
+  `https://devpost.com/software/read-video`, but the Build Week entry remains unsubmitted
+  (`submitted_at: null`). No final submission tool was called.
+
+## Files changed
+- `skill/scripts/video.py` — machine protocol, manifest, compact output, error taxonomy.
+- `tests/test_agent_cli_contract.py` — subprocess contract and retryability regressions.
+- `skill/SKILL.md`, `README.md`, `docs/cli-reference.md` — agent-facing usage contract.
+- `docs/devpost-draft.md` — editable overview and submission-field working copy.
+- `docs/handoff/.current-session`, `docs/handoff/HANDOFF.md`, this file — session state.
+
+## Failed attempts
+- `agent-browser --auto-connect` could not attach to the user's logged-in Chrome; a headed session
+  opened Devpost but later timed out. No credentials were handled. The authenticated Devpost
+  connector completed the project update safely.
+- `skillspector scan skill --no-llm` still returns `100/100 CRITICAL — DO NOT INSTALL` (15 findings),
+  chiefly the documented intentional API-key → cloud-transcription request flow. This is unchanged
+  in substance from `SECURITY.md`; no installation was performed.
+- The requested “draft” overview update caused Devpost to publish the standalone project page.
+  It did **not** submit the project to OpenAI Build Week. There is no exposed MCP unpublish action,
+  so the page was left intact rather than attempting a destructive workaround.
+
+## Next steps
+- Richard should rewrite/polish the Devpost description in his own voice; the organizer explicitly
+  warns not to submit AI-generated copy unchanged.
+- Update the country field on the actual Devpost form to Canada (Toronto) — corrected in the local
+  draft only; no Devpost connector was available in the follow-up turn to push it live.
+- Run `/feedback` in the primary build task and enter the confirmed ID.
+- Test-install from a clean clone.
+- Record/upload the public <3-minute YouTube demo with voiceover, add thumbnail/screenshots, then
+  complete the remaining custom fields and explicitly authorize the final hackathon submission.
+- Keep network interception/browser-bypass ideas parked outside this Build Week submission.
+- Merge PR #7 (https://github.com/RikepilB/read-video/pull/7) when ready; re-point GitHub Pages
+  Settings to `main` afterward (currently serves from this branch).
+
+## Update — verification + commit (follow-up turn)
+
+The `/ultraplan` cloud container reported failure after 90 minutes ("ExitPlanMode never reached"),
+but its changes were already on disk, uncommitted. Rather than trust the "failed" status or the
+"successful" claims in this file at face value, independently re-verified: ran `pytest` fresh
+(120 passed, confirmed), read the entire `skill/scripts/video.py` diff, and ran a real command to
+check exit-code behavior. Confirmed the work is sound with one nuance worth flagging: the
+"backward-compatible" claim above holds for the legacy JSON *shape* but not for process exit codes
+— every error now returns a classified code (2-6) instead of the old always-`1`, even without
+`--envelope`. Safe in this repo (nothing here checks exit codes) but not literally 100%
+backward-compatible at the process-exit level.
+
+User reviewed and decided: keep the redesigned landing page, commit now, and corrected the
+Devpost draft's wrong "Chile" country default to **Canada (Toronto)**. Committed as two logical
+groups — `728a770` (agent CLI protocol) and `12c775d` (landing page redesign + Devpost draft) —
+and pushed, updating PR #7 automatically.
+
+## Files in this folder
+- `HANDOFF.md` — this curated digest
+- `transcript.md` — full `/export` of the session (if captured)
+- `snapshot-<HHMMSS>.md` — auto git-snapshots written by the PreCompact hook, if any

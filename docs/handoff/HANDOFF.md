@@ -11,28 +11,32 @@ isn't enough.
 
 ## Current state
 
-OpenAI Build Week extension is implemented, code-reviewed, and fixed on
-`codex/build-week-read-video` (7 commits ahead of `main`, all pushed to origin, working tree
-clean). `/code-review` found 9 real bugs (all in the new cost/consent gate); all 6 underlying
-fixes landed with regression tests — `pytest` 103 → **111 passed**. `SkillSpector` still returns
-`100/100 CRITICAL` (intentional env-key→cloud-request flow) — disposition: **accept + document**,
-covered in the new `SECURITY.md`. A **GitHub Pages landing page** (`docs/index.html`, no external
-fonts/CDN) is live at **https://rikepilb.github.io/read-video/**, built from this branch. A 9-beat
-demo shot list (`docs/demo-shot-list.md`) is drafted for the required <3-min Devpost video —
-**recording itself is still pending** (manual, needs a real >45s spoken clip for the transcription-
-tiers beat). Root `handoff.md` was untracked from git (internal artifact; this tree is canonical).
+`/ultraplan` was invoked to do a bigger review+prep pass; its cloud container reported **failed**
+("ExitPlanMode never reached... remote container failed to start"), but had already made real,
+substantial local changes before dying. Rather than trust or discard blindly, verified each claim
+independently: `pytest` genuinely 120 passed (was 111), read the full `skill/scripts/video.py` diff
+line-by-line, spot-checked exit-code behavior with a real command. Findings: the new agent-CLI
+protocol (`manifest`, `--envelope`/`--compact`, `{ok,data,error,meta}`, exit-code taxonomy 0-6) is
+solid and well-tested, but its "backward-compatible" claim only holds for JSON *shape* — process
+exit codes changed for ALL errors now, not just `--envelope` mode (confirmed: a missing file now
+exits `3`, not the old always-`1`). Safe here (no agent config in this repo checks exit codes) but
+worth knowing. Committed in two logical groups: `728a770` (AX protocol) and `12c775d` (landing page
+redesign + Devpost draft) — both pushed, updating PR #7.
 
-**PR #7 is open** (https://github.com/RikepilB/read-video/pull/7, `codex/build-week-read-video` →
-`main`, 9 commits) — not yet merged, that's the user's call. GitHub issue #6
-(https://github.com/RikepilB/read-video/issues/6) tracks everything still open before the
-2026-07-21, 5PM PT deadline: record/upload the demo video, run `/feedback` for the session ID,
-decide merge-vs-branch (GitHub Pages currently serves from the branch, needs re-pointing to `main`
-after merge), test-install from a clean clone, then submit Devpost (Developer Tools track) —
-written in the user's own voice, not AI-generated, per Devpost's own guidance. A separate, much
-bigger vision (universal browser-extension agent + multi-model orchestration across
-Instagram/LinkedIn/Substack/X) was explicitly parked for post-submission — see `docs/ROADMAP.md`'s
-new "Parked idea" section, not scoped or authorized. Full detail:
-`docs/handoff/2026-07-17-openai-build-week/HANDOFF.md`.
+The landing page (`docs/index.html`) got fully redesigned by the failed run (different aesthetic —
+dark navy/blue, system fonts, still no external CDN calls). User chose to **keep the redesign**
+over the earlier customs-stencil version. `docs/devpost-draft.md`'s country field defaulted to
+Chile — wrong; corrected to **Canada (Toronto)** per the user, but the actual Devpost form field
+itself still needs updating (no Devpost connector available in this session to do it directly).
+
+Devpost project `1332780` is populated at `https://devpost.com/software/read-video`. Updating the
+overview auto-published the standalone project page as a side effect; the OpenAI Build Week entry
+is **not submitted** (`submitted_at: null`), no final-submit action was called. Remaining before
+the 2026-07-21 5PM PT deadline: Richard's own-voice edit of the description, actual country field
+fix on Devpost itself, `/feedback` session ID, public <3-min YouTube demo, thumbnail/screenshots,
+clean-clone test, then explicit final-submit authorization. PR #7 still open, not merged. Browser
+interception/bypass stays explicitly parked outside this scope. Full detail:
+`docs/handoff/2026-07-17-devpost-draft/HANDOFF.md`.
 
 ## Previous state — 2026-07-15 (superseded)
 
@@ -89,6 +93,15 @@ Phase 0 kickoff) — all still open.
 ## Session index
 _(newest first)_
 
+- **2026-07-17-devpost-draft** — `/ultraplan` cloud run added agent CLI reflection/envelopes/compact
+  JSON/exit taxonomy via TDD (111→120 passed), saved the Devpost overview/links, redesigned the
+  landing page, and drafted `docs/devpost-draft.md` — then the cloud container reported failed
+  (ExitPlanMode never reached) with everything left uncommitted. Follow-up turn independently
+  verified every claim (ran pytest myself, read the full diff, tested exit codes for real) rather
+  than trusting or discarding blindly; found the "backward-compatible" claim only holds for JSON
+  shape, not process exit codes (informational, not a bug — nothing here checks exit codes). User
+  chose: keep the redesign, commit now, and corrected a wrong Chile default to Canada (Toronto).
+  Committed (`728a770` AX protocol, `12c775d` landing page + Devpost draft), pushed to PR #7.
 - **2026-07-17-openai-build-week** — implemented the approved Developer Tools extension on
   `codex/build-week-read-video`: adaptive transcription, model/cloud consent gates, GPT-5.6
   pricing/vision accounting, fixture, tests, README, and submission runbook; `103 passed` and real
