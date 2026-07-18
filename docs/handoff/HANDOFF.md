@@ -11,10 +11,16 @@ isn't enough.
 
 ## Current state
 
-**PR #7, #8, #9 all merged/open on `main`** (verified via `gh pr list` 2026-07-18): #7 and #8
-merged; #9 (`https://github.com/RikepilB/read-video/pull/9`, no-arg welcome screen for
-`voidscape`/`read-video` entry points, `pytest` 14/14 on the touched files) opened same day by a
-Claude Code session working this repo alongside Codex.
+**PR #7, #8, #9 all merged to `main`** (verified via `gh pr list` 2026-07-18, merge commit
+`e304768`). **Correction to this file's earlier note:** PR #9 was initially described here as
+"just" a no-arg welcome-screen diff — it actually also carried Codex's already-completed, larger
+`skill/scripts/video.py` → `skill/scripts/voidscape.py` rename (commit `9f26ed0`, ~950 lines/17
+files) that had been sitting unmerged on `codex/build-week-read-video` since earlier the same day.
+Both were tested together before merge: fresh clone of the branch, ran the documented judge path
+(`voidscape.py inspect/preview/read`) end-to-end successfully, full `pytest` = 127 passed / 1
+failed (pre-existing, unrelated — `test_agent_docs_gate_sync.py` checks a path under the
+gitignored `.claude/`, fails on any clean clone, not introduced by this session). User (Richard)
+reviewed this correction and approved merging as-is.
 
 Devpost project `1332780` is live at `https://devpost.com/software/read-video`, entry **not
 submitted** (`submitted_at: null`). Deadline **2026-07-21 5PM PT**. Remaining gaps, tracked in
@@ -25,10 +31,14 @@ submitted** (`submitted_at: null`). Deadline **2026-07-21 5PM PT**. Remaining ga
 3. `/feedback` session ID missing — needs Richard to resume Codex task
    `019f708e-5615-7f00-9a02-b0e5bc435efd` and run `/feedback` there.
 4. No public <3-min YouTube demo recorded/linked yet.
-5. No thumbnail/screenshots — `docs/index.html` currently ships zero `<img>` tags; the one
-   existing `demo.gif` on disk pre-dates the Voidscape rebrand and is unused/stale.
-6. Clean-clone install test not yet run.
+5. No thumbnail/screenshots — `docs/index.html` ships zero `<img>` tags; the existing
+   `docs/assets/demo.gif` pre-dates the Voidscape rebrand and is unused/stale, don't reuse as-is.
+6. **Clean-clone judge-path test: done, passed** (see above). `scripts/install-skill.ps1`/`.sh`
+   still untested against a scratch root — that part of the check remains open.
 7. Final submit explicitly gated on Richard's manual review + click.
+8. Minor/cosmetic: `voidscape.py inspect`'s output printed a `�` in one shell instead of what's
+   likely an intended em dash/bullet — worth a look on a real Windows terminal before the demo
+   video is recorded.
 
 Full execution plan (Claude-Code-doable vs Richard-only split, ordering) written to
 `C:\Users\a2021\.claude\plans\cozy-purring-crane.md` 2026-07-18.
