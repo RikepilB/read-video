@@ -110,6 +110,17 @@ Committed (`ad1ed83`), pushed. Since PR #7 was already merged, opened **PR #8** 
 unmerged commits (AX protocol, landing redesign, Devpost draft, handoff updates, this cleanup):
 https://github.com/RikepilB/read-video/pull/8. `pytest`: 120 passed, confirmed after cleanup.
 
+User also asked for a portfolio-entry template. Found `PROYECTOS/Portfolio/src/data/projects.ts`
+already has a `read-video` entry (`id: '14'`, `status: 'coming-soon'`) with stale pre-Build-Week
+numbers (997 lines, 67 tests/11 files, 46 commits) — the user's pasted text was that exact existing
+draft. Verified current real numbers against the live repo (1,300 lines, 120 tests/17 files, 62
+commits on `main`) rather than trusting the old draft, and wrote `docs/portfolio-entry.md`: a
+ready-to-paste replacement matching Portfolio's exact `Project` TypeScript schema, adding a Build
+Week/agent-protocol/adversarial-review methodology phase, a 4th result tile, the live GitHub Pages
+link, and recommending `status: 'shipped'` (flagged, not silently applied). Did **not** edit the
+Portfolio repo directly — out of scope for a read-video session; the user pastes it in themselves.
+Committed `72e7272`, pushed.
+
 ## Files in this folder
 - `HANDOFF.md` — this curated digest
 - `transcript.md` — full `/export` of the session (if captured)
