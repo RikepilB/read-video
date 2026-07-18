@@ -33,8 +33,9 @@ submitted** (`submitted_at: null`). Deadline **2026-07-21 5PM PT**. Remaining ga
 4. No public <3-min YouTube demo recorded/linked yet.
 5. No thumbnail/screenshots — `docs/index.html` ships zero `<img>` tags; the existing
    `docs/assets/demo.gif` pre-dates the Voidscape rebrand and is unused/stale, don't reuse as-is.
-6. **Clean-clone judge-path test: done, passed** (see above). `scripts/install-skill.ps1`/`.sh`
-   still untested against a scratch root — that part of the check remains open.
+6. **Clean-clone judge-path test: done, passed.** `scripts/install-skill.ps1` and `.sh` both
+   verified against scratch roots (not the real `~/.claude/skills`) — all 12 copy/frontmatter/cli
+   checks OK for both `voidscape` and `read-video` targets, both scripts.
 7. Final submit explicitly gated on Richard's manual review + click.
 8. Minor/cosmetic: `voidscape.py inspect`'s output printed a `�` in one shell instead of what's
    likely an intended em dash/bullet — worth a look on a real Windows terminal before the demo
