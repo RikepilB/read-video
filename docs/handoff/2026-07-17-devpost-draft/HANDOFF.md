@@ -73,6 +73,16 @@ Devpost draft's wrong "Chile" country default to **Canada (Toronto)**. Committed
 groups — `728a770` (agent CLI protocol) and `12c775d` (landing page redesign + Devpost draft) —
 and pushed, updating PR #7 automatically.
 
+## Update — Vercel deploy attempt (same turn)
+
+User asked to also deploy the landing page to Vercel (keep both, alongside GitHub Pages). Attempt
+blocked: `deploy_to_vercel` returned `403 forbidden` ("You don't have permission to create a
+project"), and `list_projects` requires a `teamId` that doesn't exist (`list_teams` returned empty
+— personal account). This is a Vercel account/connector permission issue, not something fixable
+from this session. User chose to skip Vercel for now; GitHub Pages remains the only live landing
+page. Revisit once the Vercel connector has project-create scope, or once the user supplies an
+existing project name/ID to deploy into instead of creating a new one.
+
 ## Files in this folder
 - `HANDOFF.md` — this curated digest
 - `transcript.md` — full `/export` of the session (if captured)
