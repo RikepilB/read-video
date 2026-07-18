@@ -38,6 +38,10 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# --- Local harness automation (Claude Code agents/commands) — kept on disk for daily use,
+# never published in this OSS repo. .codex/ is the intentionally-tracked, harness-neutral mirror. ---
+.claude/
+
 # --- OS / editor ---
 .DS_Store
 Thumbs.db

@@ -64,6 +64,13 @@ _WHISPER_DEFAULT = "small"
 _WHISPER_THOROUGH_DEFAULT = "medium"
 _WHISPER_FALLBACKS = ("small", "base", "tiny")
 _TRANSCRIBE_THOROUGH_THRESHOLD_S = 45.0
+_CLI_PROTOCOL_VERSION = "1.0"
+_EXIT_UNEXPECTED = 1
+_EXIT_USAGE = 2
+_EXIT_INPUT = 3
+_EXIT_APPROVAL = 4
+_EXIT_DEPENDENCY = 5
+_EXIT_OPERATION = 6
 
 DEFAULT_PRICING: dict[str, Any] = {
     "transcription_per_min": {
@@ -1079,6 +1086,103 @@ def _gemini(wav: str) -> str:
 
 
 # --------------------------------------------------------------------------- cli
+def _cli_manifest() -> dict[str, Any]:
+    common = ["--human", "--envelope", "--compact"]
+    return {
+        "protocol_version": _CLI_PROTOCOL_VERSION,
+        "interactive": False,
+        "default_output": "legacy_json",
+        "agent_output": "standard envelope: {ok,data,error,meta}",
+        "commands": {
+            "manifest": {
+                "description": "describe commands, flags, output protocol, and exit codes",
+                "flags": ["--envelope", "--compact"],
+            },
+            "probe": {
+                "description": "inspect a local file or URL without media processing",
+                "flags": [*common],
+            },
+            "estimate": {
+                "description": "price tokens/transcription and surface approval requirements",
+                "flags": [
+                    "--frames", "--backend", "--out-words", "--tier",
+                    "--transcribe-mode", "--agent-model", *common,
+                ],
+            },
+            "run": {
+                "description": "extract frames and an optional transcript into a workdir",
+                "flags": [
+                    "--tier", "--frames", "--backend", "--start", "--end", "--workdir",
+                    "--no-dedup", "--timestamps", "--transcribe-mode", "--allow-cloud",
+                    "--allow-model-download", *common,
+                ],
+            },
+        },
+        "exit_codes": {
+            "0": "success",
+            "1": "unexpected_error",
+            "2": "usage_error",
+            "3": "input_error",
+            "4": "approval_required",
+            "5": "dependency_error",
+            "6": "operation_failed",
+        },
+    }
+
+
+def _json_text(obj: dict[str, Any], compact: bool = False) -> str:
+    return json.dumps(obj, separators=(",", ":") if compact else None,
+                      indent=None if compact else 2)
+
+
+def _envelope(data: dict[str, Any] | None, error: dict[str, Any] | None,
+              command: str | None) -> dict[str, Any]:
+    return {
+        "ok": error is None,
+        "data": data,
+        "error": error,
+        "meta": {"command": command, "protocol_version": _CLI_PROTOCOL_VERSION},
+    }
+
+
+def _classify_error(ex: Exception) -> tuple[int, str, bool]:
+    if isinstance(ex, PermissionError):
+        return _EXIT_APPROVAL, "approval_required", False
+    if isinstance(ex, (FileNotFoundError, ValueError)):
+        return _EXIT_INPUT, "input_error", False
+    message = str(ex).lower()
+    if isinstance(ex, RuntimeError) and any(
+            marker in message for marker in ("ffprobe failed", "invalid media", "no such file")):
+        return _EXIT_INPUT, "input_error", False
+    dependency_markers = ("pip install", "not installed", "not set", "no usable transcription")
+    if isinstance(ex, (ImportError, ModuleNotFoundError)) or any(
+            marker in message for marker in dependency_markers):
+        return _EXIT_DEPENDENCY, "dependency_error", False
+    if isinstance(ex, RuntimeError):
+        transient_markers = ("429", "rate limit", "timed out", "timeout", "temporar",
+                             "connection reset", "network error")
+        return (_EXIT_OPERATION, "operation_failed",
+                any(marker in message for marker in transient_markers))
+    return _EXIT_UNEXPECTED, "unexpected_error", False
+
+
+class _AgentArgumentParser(argparse.ArgumentParser):
+    machine_errors = False
+    compact_errors = False
+    error_command: str | None = None
+
+    def error(self, message: str) -> None:
+        if type(self).machine_errors:
+            error = {
+                "code": "usage_error", "message": message,
+                "retryable": False, "exit_code": _EXIT_USAGE,
+            }
+            print(_json_text(_envelope(None, error, type(self).error_command),
+                             type(self).compact_errors))
+            raise SystemExit(_EXIT_USAGE)
+        super().error(message)
+
+
 def _fmt_estimate(o: dict[str, Any]) -> str:
     c, t = o["cost_usd"], o["tokens"]
     out = [
@@ -1103,16 +1207,26 @@ def _fmt_estimate(o: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
-def _emit(obj: dict[str, Any], human: bool) -> None:
+def _emit(obj: dict[str, Any], human: bool, envelope: bool = False,
+          compact: bool = False, command: str | None = None) -> None:
     if human and "cost_usd" in obj:
         print(_fmt_estimate(obj))
     else:
-        print(json.dumps(obj, indent=2))
+        payload = _envelope(obj, None, command) if envelope else obj
+        print(_json_text(payload, compact))
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="video.py", description="cost-aware video analysis engine")
+    args_list = list(sys.argv[1:] if argv is None else argv)
+    commands = {"manifest", "probe", "estimate", "run"}
+    command = next((arg for arg in args_list if arg in commands), None)
+    _AgentArgumentParser.machine_errors = "--envelope" in args_list
+    _AgentArgumentParser.compact_errors = "--compact" in args_list
+    _AgentArgumentParser.error_command = command
+    ap = _AgentArgumentParser(prog="video.py", description="cost-aware video analysis engine")
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    m = sub.add_parser("manifest", help="describe the machine-readable CLI contract")
 
     p = sub.add_parser("probe", help="inspect input -> JSON")
     p.add_argument("input")
@@ -1147,25 +1261,38 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--allow-model-download", action="store_true",
                    help="confirm explicit consent for a one-time faster-whisper model download")
 
-    for sp in (p, e, r):
-        sp.add_argument("--human", action="store_true", help="readable output instead of JSON")
+    for sp in (m, p, e, r):
+        modes = sp.add_mutually_exclusive_group()
+        modes.add_argument("--human", action="store_true", help="readable output instead of JSON")
+        modes.add_argument("--envelope", action="store_true",
+                           help="wrap JSON in {ok,data,error,meta} for agents")
+        sp.add_argument("--compact", action="store_true", help="emit token-efficient compact JSON")
 
-    a = ap.parse_args(argv)
+    a = ap.parse_args(args_list)
     try:
-        if a.cmd == "probe":
-            _emit(probe(a.input), a.human)
+        if a.cmd == "manifest":
+            _emit(_cli_manifest(), False, a.envelope, a.compact, a.cmd)
+        elif a.cmd == "probe":
+            _emit(probe(a.input), a.human, a.envelope, a.compact, a.cmd)
         elif a.cmd == "estimate":
             _emit(estimate(a.input, a.frames, a.backend, a.out_words, a.tier,
                            transcribe_mode=a.transcribe_mode,
-                           agent_model=a.agent_model), a.human)
+                           agent_model=a.agent_model), a.human, a.envelope, a.compact, a.cmd)
         elif a.cmd == "run":
             _emit(run(a.input, a.tier, a.frames, a.backend, a.start, a.end, a.workdir,
                        timestamps=a.timestamps, dedup=not a.no_dedup,
                        transcribe_mode=a.transcribe_mode, allow_cloud=a.allow_cloud,
-                       allow_model_download=a.allow_model_download), a.human)
+                       allow_model_download=a.allow_model_download),
+                  a.human, a.envelope, a.compact, a.cmd)
     except Exception as ex:                       # surface as JSON so the agent can react
-        print(json.dumps({"error": str(ex)}))
-        return 1
+        exit_code, code, retryable = _classify_error(ex)
+        if a.envelope:
+            error = {"code": code, "message": str(ex),
+                     "retryable": retryable, "exit_code": exit_code}
+            print(_json_text(_envelope(None, error, a.cmd), a.compact))
+        else:
+            print(_json_text({"error": str(ex)}, a.compact))
+        return exit_code
     return 0
 
 
