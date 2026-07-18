@@ -11,6 +11,12 @@ isn't enough.
 
 ## Current state
 
+**PR #7 merged; PR #8 open** (https://github.com/RikepilB/read-video/pull/8, 5 commits: AX
+protocol, landing redesign, Devpost draft, handoff updates, and a cleanup that untracked `.claude/`
+from git — kept on disk, matches `main`'s own post-merge cleanup — after discarding unrelated
+cross-session contamination that had appeared in the working tree, `pytest` reconfirmed 120 passed
+after cleanup). Portfolio template requested next — see session folder.
+
 `/ultraplan` was invoked to do a bigger review+prep pass; its cloud container reported **failed**
 ("ExitPlanMode never reached... remote container failed to start"), but had already made real,
 substantial local changes before dying. Rather than trust or discard blindly, verified each claim

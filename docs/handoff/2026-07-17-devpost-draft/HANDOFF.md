@@ -83,6 +83,33 @@ from this session. User chose to skip Vercel for now; GitHub Pages remains the o
 page. Revisit once the Vercel connector has project-create scope, or once the user supplies an
 existing project name/ID to deploy into instead of creating a new one.
 
+## Update — /gsd-ship again: contamination cleanup + PR #8 (same day)
+
+User ran `/gsd-ship` again asking to "commit, test, push, ship all the things." Orientation
+revealed the situation had changed significantly: **PR #7 was already merged** to `main`
+(`123b7b4`), then a separate commit (`4ef7f3d`, "Delete .claude directory", authored directly by
+Richard) removed this repo's own `.claude/` automation (ig-pipeline, instagram-capture, read-audio,
+architecture rules) from `main`. Meanwhile the local working tree on this branch had accumulated
+**unrelated contamination**: `docs/index.html` was overwritten with a different project's content
+(title read "Voidscape", not read-video — cross-session bleed, not real work here), and a full
+generic full-stack agent/skill scaffold (architect, database-reviewer, e2e-runner, shadcn,
+tailwind-design-system, ~20 skill folders) had appeared uncommitted — none of it applicable to this
+stdlib-only Python CLI.
+
+Did not blindly "ship everything" as literally instructed — flagged all three findings to the user
+before touching anything. Resolved: discarded the Voidscape `docs/index.html` (restored the
+committed tape-deck redesign), discarded the entire foreign scaffold, and — per the user's
+clarification ("keep my claude.md locally but not in the repo") — untracked `.claude/` from git
+repo-wide (`git rm --cached`, added to `.gitignore`) while leaving the real automation files on
+disk untouched, matching what already happened on `main`. Kept three new, legitimately-scoped,
+read-only capture-adapter planning agents (youtube-private-queue-planner, x-bookmarks-planner,
+substack-rss-planner — matches the already-parked ROADMAP vision) plus their `.codex/agents/*.toml`
+mirrors, since those were real and well-formed, not contamination.
+
+Committed (`ad1ed83`), pushed. Since PR #7 was already merged, opened **PR #8** for the 5 remaining
+unmerged commits (AX protocol, landing redesign, Devpost draft, handoff updates, this cleanup):
+https://github.com/RikepilB/read-video/pull/8. `pytest`: 120 passed, confirmed after cleanup.
+
 ## Files in this folder
 - `HANDOFF.md` — this curated digest
 - `transcript.md` — full `/export` of the session (if captured)
