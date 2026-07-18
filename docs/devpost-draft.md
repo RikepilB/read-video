@@ -1,148 +1,91 @@
-# Devpost draft — OpenAI Build Week
+# Devpost project-page draft — Voidscape
 
-This is working copy for project `1332780`. Edit it into Richard's natural voice before the final
-submission; the Build Week announcement explicitly asks participants not to submit AI-written
-project descriptions unchanged.
+Working copy for Devpost project `1332780`. Update the editable project page only. Do **not** submit
+the Build Week entry until the public demo, `/feedback` ID, screenshots, and final human review are
+complete.
 
-## Project overview
+## Project fields
 
-**Name:** read-video
-
-**Tagline:** Turn videos into grounded GPT-5.6 answers—with cost and privacy gates before the work starts.
-
-**Built with:** Python, Codex, GPT-5.6, ffmpeg, ffprobe, yt-dlp, faster-whisper, pytest
-
-**Links:**
-
-- https://github.com/RikepilB/read-video
-- https://rikepilb.github.io/read-video/
-
-## Description
-
-### Why I built it
-
-Coding agents can read code, text, and images, but they cannot directly inspect a video file. The
-usual workaround—extracting hundreds of frames and uploading the audio—also hides two important
-decisions from the user: how many vision tokens the job may consume, and whether private audio is
-about to leave the machine.
-
-I built `read-video` as a Codex skill and a small, non-interactive Python CLI. It turns a local
-video or URL into the two artifacts an agent can reason over: sampled JPEG frames and a timestamped
-transcript. Codex then answers from those artifacts with grounded `[MM:SS]` citations.
-
-### What it does
-
-The workflow is deliberately explicit:
-
-1. `probe` inspects duration, resolution, audio, captions, and local sidecars.
-2. `estimate` calculates transcription spend and an API-equivalent GPT-5.6 vision/token estimate.
-3. The user reviews the cost, dependency, model-download, and cloud-privacy gates.
-4. `run` extracts only the approved frames and transcript.
-5. Codex reads the manifest and artifacts and produces a timestamped answer.
-
-The default path is local-first. A backend chain containing OpenAI, Groq, OpenRouter, or Gemini is
-rejected before media download or audio conversion unless the user explicitly passes
-`--allow-cloud`. A first-time Whisper model download has its own separate approval flag.
-
-### What I added during Build Week
-
-`read-video` existed before July 13, so I kept the event extension easy to audit. The Build Week
-work adds:
-
-- adaptive local transcription: fast through 45 seconds, then a higher-recall medium Whisper
-  profile with tuned VAD and previous-text conditioning disabled;
-- GPT-5.6 Sol, Terra, and Luna pricing with native 32×32 image-patch estimation;
-- worst-case pricing and dependency checks across complete fallback chains;
-- hard CLI enforcement for cloud processing and model-download consent;
-- an agent-facing CLI protocol with a self-describing `manifest`, compact JSON, optional
-  `{ok,data,error,meta}` envelopes, and deterministic exit/error metadata;
-- a reproducible, copyright-free demo fixture with a sidecar transcript so judges need no API key
-  or external media.
-
-### How I used Codex and GPT-5.6
-
-I used Codex with GPT-5.6 throughout the extension: first to inspect the existing repository and
-separate pre-event behavior from eligible Build Week work, then to implement tests and features,
-run a focused code review, and exercise the real probe → estimate → gate → run flow. The review
-found nine issues in the new cost/consent logic; I fixed the six underlying causes and added
-regressions before continuing.
-
-The human decisions stayed human: the 45-second routing boundary came from my own videos; I chose
-local-first privacy, conservative fallback pricing, explicit per-run consent, and the decision to
-keep the hackathon scope to the CLI/skill instead of expanding into a web product or browser
-scraper.
-
-### Challenges
-
-The hardest part was making a helpful fallback chain without weakening the privacy boundary. It is
-not enough to inspect the first backend: a later fallback can still upload audio or cost money.
-The estimator and runtime gate therefore examine the whole chain, and tests verify that conversion
-and upload functions are never reached without consent.
-
-Another challenge was first-run local transcription. A medium Whisper model can be hundreds of
-megabytes, so `estimate` checks cache status and surfaces the download before `run` rather than
-surprising the user halfway through a task.
-
-### What I am proud of
-
-- The current suite has 120 passing tests, including subprocess-level CLI tests, installer tests,
-  threshold boundaries, model fallback, workspace filenames, GPT-5.6 patch pricing, and blocked
-  cloud uploads.
-- Judges can generate and analyze the demo fixture locally without keys or copyrighted media.
-- Existing callers keep their original JSON, while agents can opt into a compact stable envelope.
-- The repository documents the intentional static-security warning created by optional cloud API
-  keys instead of hiding it.
-
-### What I learned
-
-Agent Experience is different from ordinary CLI ergonomics. Agents benefit from reflection,
-compact structured output, stable exit semantics, zero interactive prompts, and approval gates
-that are explicit flags rather than hidden confirmations. I also learned that cost estimation is
-part of product design: the dominant cost is often the agent reading frames, not transcription.
-
-### What's next
-
-After Build Week I want to validate the thorough transcription profile on more original long-form
-videos and extract a cleaner media-reader interface from the working CLI. Broader capture adapters
-and browser automation remain deliberately outside this submission.
-
-## Submission fields
-
-| Field | Draft answer |
-|---|---|
-| Submitter Type | Individual |
-| Country | Canada (Toronto) |
-| Category | Developer Tools |
+| Field | Value |
+| --- | --- |
+| Name | **Voidscape** |
+| Tagline | Turn the media you keep into local, timestamped evidence before you pay or upload. |
+| Category | **Apps for Your Life** |
 | Repository | https://github.com/RikepilB/read-video |
-| Project/test URL | https://rikepilb.github.io/read-video/ — follow the key-free judge demo below |
-| `/feedback` Session ID | **PENDING: run `/feedback` in the primary build task** |
+| Project URL | https://rikepilb.github.io/read-video/ |
+| Built with | Python, Codex, GPT-5.6, FFmpeg, FFprobe, yt-dlp, faster-whisper, pytest |
+| `/feedback` session ID | Pending — add only after the confirmed primary implementation session. |
 
-### Installation, platforms, and judge test
+## Project description
 
-Supported: Windows 11 PowerShell; macOS/Linux Bash; Python 3.10+; Codex and other agents that read
-the standard `SKILL.md` format. `ffmpeg`/`ffprobe` are required; `yt-dlp` is only needed for URLs;
-`faster-whisper` is optional.
+I built Voidscape because saved videos, voice notes, demos, and recordings keep becoming a pile of
+things I mean to return to. An agent can summarize text and images, but it cannot actually inspect a
+video file unless someone first turns that media into evidence it can read.
 
-From the public repository:
+Voidscape is a local-first personal media workflow built on my open-source `read-video` engine. It
+helps me move from a recording or video URL to selected frames, a timestamped transcript, and a
+manifest that maps the evidence back to the source. An agent can then answer from those artifacts
+with `[MM:SS]` citations instead of guessing from a title, thumbnail, or prompt.
+
+The part I care about most is the decision before processing. Voidscape uses three simple moves:
+
+1. **Inspect** the source: duration, audio, captions, sidecars, and likely scope.
+2. **Preview** the cost, dependency, model-download, and cloud-privacy boundary.
+3. **Read** only the approved media into frames, transcript, and manifest.
+
+The default path stays local. A cloud transcription route is rejected unless I explicitly approve
+`--allow-cloud`; a first-time local Whisper model download has its own separate approval. The
+estimate also shows an API-equivalent GPT-5.6 vision-token cost before the agent reads frames.
+
+I use it for personal research and productivity: reviewing a meeting or screen recording, turning a
+voice memo into a Markdown note through an agent, and working through saved learning videos. The
+repository also contains an optional, user-observed Instagram saved-Reel workflow that captures a
+confirmed public URL before analysis. It is deliberately source-specific rather than pretending all
+browser automation is safe or interchangeable.
+
+### Built with Codex and GPT-5.6
+
+Codex helped me audit the existing engine, implement the guided Voidscape layer, build tests, and
+exercise the actual inspect → preview → consent → read flow. GPT-5.6 pricing is part of the gate:
+the project estimates 32×32 vision patches and makes the dominant cost visible before the run.
+
+The human choices stayed mine: local-first privacy, separate consent for cloud and model downloads,
+the personal-media use cases, and the decision not to claim unbuilt adapters as product features.
+
+### Available now
+
+- Local recordings, demos, meetings, screen captures, voice material, and supported public video URLs.
+- Local frames, transcripts, manifests, cost previews, and timestamp-grounded agent answers.
+- Guided `inspect`, `preview`, `read`, `customize`, and `doctor` commands.
+- Existing Instagram saved-Reel and audio-note workflows in the repository's Claude Code setup.
+
+### Planned, not claimed as shipped
+
+- Substack/RSS article intake and text-to-Markdown conversion.
+- Private YouTube queue capture and additional source adapters.
+- A scheduling product, universal browser extension, multi-model reader, and hosted service.
+
+## Judge test path
+
+Supported: Windows PowerShell, macOS/Linux Bash, Python 3.10+, `ffmpeg`/`ffprobe`; `yt-dlp` only
+for URLs. No key, account, or copyrighted media is required for this test.
 
 ```powershell
 .\scripts\install-skill.ps1
 python scripts/create-demo-fixture.py
-python skill/scripts/video.py manifest --compact
-python skill/scripts/video.py estimate samples/build-week-demo.mp4 --tier both --backend captions --agent-model gpt-5.6-terra --envelope --compact
-python skill/scripts/video.py run samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output --envelope --compact
+python skill/scripts/voidscape.py inspect samples/build-week-demo.mp4
+python skill/scripts/voidscape.py preview samples/build-week-demo.mp4 --tier both --backend captions
+python skill/scripts/voidscape.py read samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output
 ```
 
-No key, account, or copyrighted sample is required. Read
-`samples/build-week-output/manifest.json`, its three frames, and `transcript.txt`, then ask Codex
-for a summary with `[MM:SS]` citations.
+Open `samples/build-week-output/manifest.json`, its frames, and `transcript.txt`, then ask an agent
+for a summary with `[MM:SS]` citations. For the advanced machine protocol, use the existing raw
+`video.py manifest --compact` and `--envelope --compact` commands documented in the repository.
 
-## Missing before final submission
+## Before final submission
 
-- Rewrite/polish the description in Richard's own voice.
-- Commit and push the agent-facing CLI contract added after this draft was started.
-- Run a clean-clone installation test.
-- Run `/feedback` and add the confirmed session ID.
-- Record and upload the public <3-minute YouTube demo with voiceover.
-- Add a project thumbnail and final screenshots on Devpost.
-- Review every answer, then explicitly authorize final submission.
+- Run the clean-clone test after the Voidscape install changes.
+- Add the confirmed `/feedback` session ID.
+- Record and upload the public under-three-minute YouTube demo with Richard's own voice.
+- Add final thumbnail and screenshots.
+- Review all Devpost fields and explicitly authorize the final submission.

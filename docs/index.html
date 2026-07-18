@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Voidscape is the presentation layer for read-video: a local-first CLI that turns video into agent-readable frames and transcripts, with visible cost and privacy gates.">
-  <title>Voidscape — make video legible to agents</title>
+  <meta name="description" content="Voidscape turns personal media into timestamped evidence: local-first frames, transcripts, manifests, and visible cost and privacy gates.">
+  <title>Voidscape — personal media, made legible</title>
   <style>
     :root {
       --ink: #030405;
@@ -168,6 +168,15 @@
     .install-proof { border-top: 1px solid rgba(225, 236, 255, .36); color: rgba(243, 246, 251, .84); display: grid; font-size: 13px; gap: 16px; grid-template-columns: 150px 1fr; margin-top: 66px; max-width: 1000px; padding-top: 20px; }
     .install-proof b { color: #dbe5ff; font: 700 10px/1.45 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 
+    .faq { background: linear-gradient(160deg, #07101f, #050609 68%); border-top: 1px solid var(--line); }
+    .faq-list { border-top: 1px solid var(--line-strong); max-width: 920px; }
+    .faq-list details { border-bottom: 1px solid var(--line); padding: 0; }
+    .faq-list summary { color: var(--paper); cursor: pointer; font: 580 clamp(20px, 2.5vw, 29px)/1.15 var(--display); letter-spacing: -.04em; list-style: none; padding: 24px 38px 24px 0; position: relative; }
+    .faq-list summary::-webkit-details-marker { display: none; }
+    .faq-list summary::after { color: var(--blue); content: "+"; font: 300 27px/1 var(--display); position: absolute; right: 4px; top: 21px; transition: transform .2s ease; }
+    .faq-list details[open] summary::after { transform: rotate(45deg); }
+    .faq-list p { color: var(--mist); font-size: 15px; line-height: 1.6; margin: 0; max-width: 690px; padding: 0 0 25px; }
+
     footer { border-top: 1px solid var(--line); padding: 26px 0 42px; }
     .footer-inner { align-items: center; color: var(--muted); display: flex; font-size: 12px; justify-content: space-between; }
     .footer-inner a:hover { color: var(--paper); }
@@ -213,6 +222,7 @@
           <a href="#screening">Screening</a>
           <a href="#workflow">Workflow</a>
           <a href="#install">Install</a>
+          <a href="#faq">FAQ</a>
           <a href="https://github.com/RikepilB/read-video" target="_blank" rel="noreferrer">GitHub ↗</a>
         </nav>
       </header>
@@ -227,7 +237,7 @@
         <div class="signal-card three"><b>approved</b><i class="signal-dot"></i></div>
       </div>
       <div class="shell hero-copy">
-        <h1>Make video <em>legible</em> to agents.</h1>
+        <h1>Make the media you keep <em>legible.</em></h1>
         <p class="lede">Voidscape turns a local file or URL into grounded frames and timestamped text—while keeping cost, cloud processing, and model downloads visible before work begins.</p>
         <div class="actions">
           <a class="button primary" href="#sequence">See the workflow <span class="arrow">↓</span></a>
@@ -235,7 +245,7 @@
         </div>
         <div class="status-row" aria-label="Product highlights">
           <div class="status"><strong>local-first</strong>audio stays yours by default</div>
-          <div class="status"><strong>cost-aware</strong>estimate before processing</div>
+          <div class="status"><strong>cost-aware</strong>preview before processing</div>
           <div class="status"><strong>agent-native</strong>frames + citations, not guesswork</div>
         </div>
       </div>
@@ -246,28 +256,28 @@
     <section class="shell" id="sequence">
       <div class="section-head">
         <div>
-          <h2>Three commands. One informed run.</h2>
+          <h2>Three deliberate moves. One clear decision.</h2>
         </div>
-        <p>Every phase leaves a readable trail: source facts, a pre-flight estimate, then artifacts an agent can inspect.</p>
+        <p>Start with source facts, preview the boundary, then prepare artifacts an agent can inspect.</p>
       </div>
       <div class="commands" aria-label="Voidscape command sequence">
         <article class="command">
           <span class="number">01 /</span>
-          <h3>Probe the source.</h3>
+          <h3>Inspect the source.</h3>
           <p>Inspect duration, resolution, audio, captions, and local sidecars before deciding what the task actually needs.</p>
-          <code>python skill/scripts/video.py probe "clip.mp4"</code>
+          <code>python skill/scripts/voidscape.py inspect "clip.mp4"</code>
         </article>
         <article class="command">
           <span class="number">02 /</span>
-          <h3>Estimate the tradeoff.</h3>
+          <h3>Preview the tradeoff.</h3>
           <p>Separate transcription spend from vision-token cost, flag dependencies, and show whether approval is required.</p>
-          <code>python skill/scripts/video.py estimate "clip.mp4" --tier both --backend captions --human</code>
+          <code>python skill/scripts/voidscape.py preview "clip.mp4" --tier both --backend captions</code>
         </article>
         <article class="command">
           <span class="number">03 /</span>
-          <h3>Run with consent.</h3>
+          <h3>Read with consent.</h3>
           <p>Extract only the frames and transcript you approved, then hand agents artifacts they can cite and inspect.</p>
-          <code>python skill/scripts/video.py run "clip.mp4" --tier both --backend captions</code>
+          <code>python skill/scripts/voidscape.py read "clip.mp4" --tier both --backend captions</code>
         </article>
       </div>
     </section>
@@ -276,18 +286,18 @@
       <div class="shell gate-grid">
         <div class="gate-copy">
           <h2 id="gate-title">See the cost before you press play.</h2>
-          <p>The estimate is a screening room, not a receipt. It exposes the frame plan, transcription path, cloud boundary, and model-download state before a run changes anything.</p>
+          <p>Preview is a decision point, not a receipt. It exposes the frame plan, transcription path, cloud boundary, and model-download state before reading changes anything.</p>
         </div>
         <figure class="proof">
-          <figcaption class="proof-head"><span>Pre-flight report</span><span>estimate --human</span></figcaption>
+          <figcaption class="proof-head"><span>Pre-flight report</span><span>voidscape preview</span></figcaption>
           <div class="proof-screen">
-            <p class="estimate-command">$ video.py estimate "clip.mp4" --tier both --human</p>
+            <p class="estimate-command">$ voidscape.py preview "clip.mp4" --tier both</p>
             <div class="estimate-lines" aria-label="Illustrative estimate fields">
               <div class="estimate-line"><span>source scan</span><span>duration + captions</span></div>
               <div class="estimate-line"><span>frame plan</span><span>count + vision tokens</span></div>
               <div class="estimate-line"><span>transcription path</span><span>local / cloud / download</span></div>
               <div class="estimate-line"><span>consent state</span><span>required if applicable</span></div>
-              <div class="estimate-line total"><span>decision</span><span>visible before run</span></div>
+              <div class="estimate-line total"><span>decision</span><span>visible before read</span></div>
             </div>
             <div class="proof-stat"><b>Nothing is implied</b><span>GATED</span><small>An API key in the environment is not consent. A cloud path or first model download must be approved explicitly.</small></div>
           </div>
@@ -310,10 +320,10 @@
             <p class="capability-intro">A local-first pipeline for evidence, pricing, and agent-ready outputs.</p>
             <ul class="capability-list">
               <li class="capability-item"><h4>Local video and recordings</h4><p>Analyze demos, meetings, tutorials, screen captures, and personal archives from a local file.</p></li>
-              <li class="capability-item"><h4>Public video URLs</h4><p>Bring a supported video URL into the same probe → estimate → run path, including individual YouTube links.</p></li>
+              <li class="capability-item"><h4>Public video URLs</h4><p>Bring a supported video URL into the same inspect → preview → read path, including individual YouTube links.</p></li>
               <li class="capability-item"><h4>Audio, captions, and transcripts</h4><p>Extract audio artifacts, use available captions, or transcribe locally before cloud analysis is approved.</p></li>
               <li class="capability-item"><h4>Saved Instagram research</h4><p>An optional, user-observed workflow turns confirmed public Reel URLs into a queue for analysis.</p></li>
-              <li class="capability-item"><h4>Evidence for coding agents</h4><p>Give an agent timestamped frames, transcripts, and manifests instead of asking it to guess what happened in a video.</p></li>
+              <li class="capability-item"><h4>Evidence an agent can use</h4><p>Give an agent timestamped frames, transcripts, and manifests instead of asking it to guess what happened in a video.</p></li>
             </ul>
           </section>
 
@@ -369,26 +379,28 @@
     <section class="start shell" id="install">
       <div class="start-panel">
         <h2>From clone to first proof.</h2>
-        <p class="start-intro">Start with a local fixture, see the gate, then hand your agent the artifacts. Each step is visible before anything paid or remote can happen.</p>
+        <p class="start-intro">Install Voidscape, optionally set your local Library, then use a key-free fixture to inspect, preview, and read evidence. No paid or remote step is implied.</p>
         <div class="install-grid" aria-label="Install and local demo commands">
           <article class="install-step">
             <b>01 / Install once</b>
-            <h3>Put the skill in your agent harness.</h3>
-            <p>Use the included installer to add the local skill without needing an account or API key.</p>
+            <h3>Install Voidscape and keep read-video working.</h3>
+            <p>The installer adds the guided Voidscape skill plus the legacy compatibility entry point.</p>
             <code class="install-command"><span class="prompt">$</span> .\scripts\install-skill.ps1</code>
           </article>
           <article class="install-step">
-            <b>02 / Create evidence</b>
-            <h3>Make an original local clip.</h3>
-            <p>The built-in fixture produces copyright-free test footage so anyone can repeat the proof.</p>
-            <code class="install-command"><span class="prompt">$</span> python scripts/create-demo-fixture.py</code>
+            <b>02 / Customize locally</b>
+            <h3>Choose an Inbox and Library when you need them.</h3>
+            <p>Review local folders and transcription defaults first. Preferences save only with explicit confirmation.</p>
+            <code class="install-command"><span class="prompt">$</span> python skill/scripts/voidscape.py customize</code>
           </article>
           <article class="install-step">
-            <b>03 / Inspect, then run</b>
-            <h3>Keep the decision visible.</h3>
-            <p>Estimate first, then run locally with the same tested Build Week commands.</p>
-            <code class="install-command"><span class="prompt">$</span> python skill/scripts/video.py estimate samples/build-week-demo.mp4 --tier both --backend captions --agent-model gpt-5.6-terra --human
-<span class="prompt">$</span> python skill/scripts/video.py run samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output</code>
+            <b>03 / Prove the flow</b>
+            <h3>Use original footage, then read the evidence.</h3>
+            <p>The fixture needs no account, key, or copyrighted media.</p>
+            <code class="install-command"><span class="prompt">$</span> python scripts/create-demo-fixture.py
+<span class="prompt">$</span> python skill/scripts/voidscape.py inspect samples/build-week-demo.mp4
+<span class="prompt">$</span> python skill/scripts/voidscape.py preview samples/build-week-demo.mp4 --tier both --backend captions
+<span class="prompt">$</span> python skill/scripts/voidscape.py read samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output</code>
           </article>
         </div>
         <div class="install-proof">
@@ -398,11 +410,27 @@
         <div class="actions"><a class="button primary" href="https://github.com/RikepilB/read-video" target="_blank" rel="noreferrer">Open read-video on GitHub <span class="arrow">↗</span></a></div>
       </div>
     </section>
+
+    <section class="faq" id="faq">
+      <div class="shell">
+        <div class="section-head">
+          <div><h2>Questions worth answering before you hand media to an agent.</h2></div>
+          <p>Voidscape makes the boundary visible: what stays local, what costs, and what exists today.</p>
+        </div>
+        <div class="faq-list">
+          <details><summary>Does Voidscape upload my media?</summary><p>Not by default. Local files, sidecar transcripts, and local transcription stay on your machine. Any cloud transcription route needs a current <code>--allow-cloud</code> approval; a first local model download needs its own <code>--allow-model-download</code>.</p></details>
+          <details><summary>What files does “read” create?</summary><p>A work folder containing selected frames, a transcript when requested, and a manifest that maps frames to timestamps. An agent can turn those artifacts into a Markdown note; the CLI does not pretend to write a semantic note itself.</p></details>
+          <details><summary>When should I inspect, preview, or read?</summary><p>Inspect is free source discovery. Preview is the cost and privacy decision. Read only follows once the path is acceptable and prepares the evidence an agent needs.</p></details>
+          <details><summary>Can I use it for saved Instagram research or voice notes?</summary><p>Yes. The repository includes an Instagram capture-to-analysis workflow and an audio-note workflow. Instagram capture is Claude-Code-specific and user-observed; both preserve the same consent-first reading core.</p></details>
+          <details><summary>What about Substack, RSS, scheduling, or a browser extension?</summary><p>Those are planned directions. They are not part of this installed release, and text articles are not sent through the video engine.</p></details>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
     <div class="shell footer-inner">
-      <span>Voidscape is the presentation layer for <a href="https://github.com/RikepilB/read-video" target="_blank" rel="noreferrer">read-video</a>.</span>
+      <span>Voidscape is powered by the open-source <a href="https://github.com/RikepilB/read-video" target="_blank" rel="noreferrer">read-video</a> engine.</span>
       <div class="footer-links"><a href="https://github.com/RikepilB/read-video/blob/main/SECURITY.md" target="_blank" rel="noreferrer">Security</a><a href="https://github.com/RikepilB/read-video/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT License</a></div>
     </div>
   </footer>

@@ -2,46 +2,47 @@
 
 ## Devpost-ready summary
 
-`read-video` is a Codex skill and CLI that turns local files or video URLs into sampled frames and
-timestamped transcripts, estimates GPT-5.6 API-equivalent cost before work begins, and lets Codex
-produce grounded answers with `[MM:SS]` citations. The Build Week extension adds adaptive local
-transcription for longer videos, conservative fallback-chain pricing, explicit model-download
-consent, and a hard cloud privacy gate that rejects uploads before audio conversion unless the user
-approved `--allow-cloud`.
+**Voidscape** is a local-first personal media workflow powered by the open-source `read-video`
+engine. It turns local recordings, demos, meetings, voice notes, and approved video URLs into
+timestamped frames, transcripts, and manifests an agent can inspect. Before remote or paid work,
+it makes the scope, estimated cost, privacy boundary, and required consent visible.
 
-Category: **Developer Tools**. Public test path: generate `samples/build-week-demo.mp4` with
-`python scripts/create-demo-fixture.py`, run the README estimate/run commands, then ask Codex to
-summarize the generated artifacts.
+Category: **Apps for Your Life**. The public test path is to generate
+`samples/build-week-demo.mp4`, then use the guided sequence:
+
+```powershell
+python scripts/create-demo-fixture.py
+python skill/scripts/voidscape.py inspect samples/build-week-demo.mp4
+python skill/scripts/voidscape.py preview samples/build-week-demo.mp4 --tier both --backend captions
+python skill/scripts/voidscape.py read samples/build-week-demo.mp4 --tier both --backend captions --workdir samples/build-week-output
+```
+
+The lower-level `video.py` commands remain available for automation and judge troubleshooting.
 
 ## 2:40 demo storyboard
 
-- **0:00–0:20 — Problem:** coding agents read images and text, not video; cost and audio privacy
-  are easy to hide.
-- **0:20–0:45 — Install + fixture:** run the one-command installer and generate the original local
-  fixture. State that no key or copyrighted media is required.
-- **0:45–1:15 — Gate:** probe, then estimate with `gpt-5.6-terra`. Point to patch-token accounting,
-  API-equivalent label, backend-chain worst-case cost, model status, and approval fields.
-- **1:15–1:40 — Grounded result:** run locally and have Codex answer from frames + sidecar with
-  `[MM:SS]` citations.
-- **1:40–2:05 — Transcription improvement:** on an original >45-second spoken clip, compare
-  `--transcribe-mode fast` with `thorough`; show medium model, tuned VAD, and no previous-text
-  conditioning.
-- **2:05–2:25 — Privacy proof:** attempt an OpenAI/Groq fallback chain without `--allow-cloud` and
-  show rejection before audio conversion/upload. Use the `samples/privacy-proof.mp4` copy (README's
-  install section) — the main demo fixture has a sidecar transcript, which resolves for free and
-  never reaches the cloud backend at all, so it won't trigger the gate.
-- **2:25–2:40 — Collaboration + impact:** explain what Codex/GPT-5.6 implemented and the human
-  decisions on threshold, privacy, cost conservatism, and scope.
+- **0:00–0:20 — Problem:** personal recordings and saved learning media are easy to lose; an agent
+  should work from the footage, not a title or a guess.
+- **0:20–0:45 — Install + fixture:** install the dual Voidscape/read-video skill and create the
+  original local fixture. State that no key or copyrighted media is needed.
+- **0:45–1:15 — Inspect + preview:** show source facts, the chosen scope, patch-token accounting,
+  API-equivalent cost, local dependency status, and privacy/approval fields.
+- **1:15–1:40 — Read + result:** run the local path and have Codex answer from the resulting frames
+  and transcript with `[MM:SS]` citations.
+- **1:40–2:05 — Local transcription:** on an original spoken clip, compare fast and thorough local
+  transcription and show that the user chooses the scope before reading.
+- **2:05–2:25 — Privacy proof:** try a cloud fallback without `--allow-cloud` and show rejection
+  before audio conversion or upload.
+- **2:25–2:40 — Collaboration + impact:** explain how Codex and GPT-5.6 accelerated the guided
+  interface and testing, while human decisions set cost, privacy, and source boundaries.
 
 Use only original screen and audio. Keep the public YouTube video under three minutes.
 
 ## Evidence and final human actions
 
-- Last pre-event commit: `bf45369`, dated 2026-07-09.
-- Build Week branch: `codex/build-week-read-video`, implementation dated 2026-07-17.
-- Add the authorized post–July 13 release commit hash to README and this file.
 - Implementation Codex task: `019f708e-5615-7f00-9a02-b0e5bc435efd`.
-- Run `/feedback` in the primary end-to-end Codex task and paste the returned session ID here.
+- Run `/feedback` in the primary end-to-end Codex task and paste the returned session ID into
+  Devpost.
 - Manually compare fast/thorough transcripts on 2–3 original videos longer than 45 seconds.
-- Test from a clean clone, record/upload the public demo, add the public repository URL, and submit
-  Devpost before July 21, 2026, 5:00 PM PT.
+- Test from a clean clone, record/upload the public demo, add screenshots and the public repository
+  URL, then **only submit when separately approved**.

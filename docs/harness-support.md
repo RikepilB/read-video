@@ -1,5 +1,8 @@
 # Multi-Harness Support
 
+Voidscape is the primary installed skill. `read-video` is installed alongside it as a compatibility
+facade for existing automations and direct `video.py` calls.
+
 `read-video`'s engine (`skill/scripts/video.py`) is a plain stdlib Python CLI with no Claude Code
 dependency — anything that can run a shell command and read a file can drive it via
 `probe → estimate → [gate] → run`. This doc covers how the *skill* (the `SKILL.md` prompt that
@@ -9,10 +12,10 @@ tells an agent how to drive that CLI) gets discovered by different agent harness
 
 | Harness | Install root | Notes |
 |---|---|---|
-| Claude Code | `~/.claude/skills/read-video/` | Claude Code does **not** read `~/.agents/skills/`. |
-| Codex | `~/.agents/skills/read-video/` | Shared cross-runtime directory. |
-| Gemini CLI | `~/.agents/skills/read-video/` | Same shared directory as Codex/Copilot CLI. |
-| Copilot CLI | `~/.agents/skills/read-video/` | Same shared directory as Codex/Gemini CLI. |
+| Claude Code | `~/.claude/skills/voidscape/` | Primary skill; `read-video/` compatibility is installed beside it. |
+| Codex | `~/.agents/skills/voidscape/` | Primary skill; shared cross-runtime directory. |
+| Gemini CLI | `~/.agents/skills/voidscape/` | Same shared directory as Codex/Copilot CLI. |
+| Copilot CLI | `~/.agents/skills/voidscape/` | Same shared directory as Codex/Gemini CLI. |
 
 Codex, Gemini CLI, and Copilot CLI all read **the same** `~/.agents/skills/` directory — installing
 there once covers all three. Claude Code needs its own separate copy at `~/.claude/skills/`.
@@ -40,8 +43,9 @@ From the repo root:
 bash scripts/install-skill.sh
 ```
 
-Both scripts copy `skill/` to both install roots and print a per-target `RESULT` line for the copy
-step and two verification checks (frontmatter parses, `video.py probe --help` runs), ending with a
+Both scripts install canonical `voidscape` and legacy `read-video` compatibility skills at both
+roots. They print a per-target `RESULT` line for each copy and two verification checks
+(frontmatter parses, `video.py probe --help` runs), ending with a
 `SUMMARY` line. Exit code is non-zero only if **every** target's copy failed — a machine with only
 Claude Code installed still succeeds overall (the `~/.agents/skills/` copy just sits there ready
 for whichever of Codex/Gemini CLI/Copilot CLI gets installed later).
@@ -59,8 +63,8 @@ CLAUDE_SKILLS_ROOT=/custom/claude/skills AGENTS_SKILLS_ROOT=/custom/agents/skill
 
 ## Re-syncing after edits
 
-There is no live-sync watcher. After editing anything under `skill/`, re-run the install script to
-push the change to both installed copies. Local config files (`workspace.json`, `.env`,
+There is no live-sync watcher. After editing anything under `skill/` or `compat/`, re-run the
+install script to push the change to both installed copies. Local config files (`workspace.json`, `.env`,
 `load-env.ps1`) at either destination are never touched by the install — the repo's `skill/`
 directory never contains those filenames (they're gitignored, generated at the destination only),
 so a plain overlay copy leaves them alone automatically.
