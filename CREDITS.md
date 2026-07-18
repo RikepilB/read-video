@@ -26,9 +26,3 @@
 
 Optional paid backends (all OpenAI-compatible `/audio/transcriptions`): **Groq**, **OpenAI**, **OpenRouter**,
 **Google Gemini**. Keys are read only from environment variables.
-
-## Built with
-
-- **[Anthropic Claude Code](https://claude.com/claude-code)** and its **skill-creator** plugin, whose
-  eval loop (with-skill vs baseline subagents → grade → benchmark) produced the validation in
-  [`docs/evals.md`](docs/evals.md).
